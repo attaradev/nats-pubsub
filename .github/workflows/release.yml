@@ -209,9 +209,9 @@ jobs:
 
       - name: Publish to RubyGems
         if: steps.check_ruby.outputs.should_release == 'true'
-        uses: rubygems/release-gem@v1
-        with:
-          working-directory: packages/ruby
+        run: |
+          cd packages/ruby
+          gem push *.gem --oidc
 
       - name: Verify RubyGems publication
         if: steps.check_ruby.outputs.should_release == 'true'
