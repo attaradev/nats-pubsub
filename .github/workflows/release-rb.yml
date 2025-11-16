@@ -2,6 +2,11 @@ name: Ruby Release
 
 on:
   workflow_call:
+    inputs:
+      version:
+        description: "Version to release (leave empty for auto-bump)"
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -189,11 +194,15 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Pull latest changes to avoid conflicts
-          git pull --rebase origin ${{ github.ref_name }}
-
           git add packages/ruby/lib/nats_pubsub/version.rb packages/ruby/CHANGELOG.md
-          git commit -m "chore(ruby): release v${{ needs.detect-version.outputs.version }}" || echo "No changes to commit"
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(ruby): release v${{ needs.detect-version.outputs.version }}"
+          fi
+
           git tag "ruby-v${{ needs.detect-version.outputs.version }}"
           git push origin ${{ github.ref_name }} --tags
 

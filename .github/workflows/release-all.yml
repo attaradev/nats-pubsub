@@ -1,0 +1,36 @@
+name: Release All Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      javascript-version:
+        description: "JavaScript version (leave empty to use package.json)"
+        required: false
+        type: string
+      ruby-version:
+        description: "Ruby version (leave empty to use version.rb)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release-javascript:
+    uses: ./.github/workflows/release-js.yml
+    permissions:
+      contents: write
+      id-token: write
+    secrets: inherit
+    with:
+      version: ${{ inputs.javascript-version }}
+
+  release-ruby:
+    uses: ./.github/workflows/release-rb.yml
+    permissions:
+      contents: write
+      id-token: write
+    secrets: inherit
+    with:
+      version: ${{ inputs.ruby-version }}
