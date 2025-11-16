@@ -64,3 +64,11 @@ jobs:
 
           # Success if jobs passed or were skipped
           echo "✓ All tests passed or were skipped"
+
+  # Trigger release workflow after CI passes on main branch
+  trigger-release:
+    name: Trigger Release
+    needs: ci-success
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

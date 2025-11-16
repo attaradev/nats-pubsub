@@ -1,11 +1,12 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize]
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: false
+      RUBYGEMS_API_KEY:
+        required: false
 
 permissions:
   contents: write
@@ -17,27 +18,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Wait for CI to complete successfully
-  wait-for-ci:
-    name: Wait for CI
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Wait for CI to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: 'CI Success'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success,skipped
-
   release:
     name: Create Release PR or Publish
     runs-on: ubuntu-latest
-    # Only run on main branch pushes (not PRs) and after CI passes
-    needs: [wait-for-ci]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
@@ -124,9 +107,6 @@ jobs:
   release-ruby:
     name: Release Ruby Package
     runs-on: ubuntu-latest
-    # Only run on main branch after tests pass
-    needs: [wait-for-ci]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
