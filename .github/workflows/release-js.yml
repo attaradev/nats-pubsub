@@ -91,7 +91,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event.inputs.dry_run != 'true'
-        uses: softprops/action-gh-release@v2.3.3
+        uses: softprops/action-gh-release@v2.4.2
         with:
           tag_name: javascript-v${{ github.event.inputs.version }}
           name: JavaScript v${{ github.event.inputs.version }}

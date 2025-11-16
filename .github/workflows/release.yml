@@ -70,7 +70,7 @@ jobs:
 
       - name: Create GitHub Release for JavaScript
         if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
-        uses: softprops/action-gh-release@v2.3.3
+        uses: softprops/action-gh-release@v2.4.2
         with:
           tag_name: javascript-v${{ steps.packages.outputs.js_version }}
           name: JavaScript v${{ steps.packages.outputs.js_version }}
@@ -194,7 +194,7 @@ jobs:
 
       - name: Create GitHub Release for Ruby
         if: steps.check_ruby.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2.3.3
+        uses: softprops/action-gh-release@v2.4.2
         with:
           tag_name: ruby-v${{ steps.ruby_version.outputs.version }}
           name: Ruby v${{ steps.ruby_version.outputs.version }}
