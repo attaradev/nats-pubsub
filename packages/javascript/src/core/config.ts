@@ -33,8 +33,24 @@ class Config {
     return this.config.streamName || `${this.config.env}-events-stream`;
   }
 
+  /**
+   * DLQ subject for failed messages
+   */
   public get dlqSubject(): string {
-    return this.config.dlqSubject || `${this.config.env}.events.dlq`;
+    return this.config.dlqSubject || `${this.config.env}.${this.config.appName}.dlq`;
+  }
+
+  /**
+   * Build event subject
+   * Format: {env}.{app_name}.{domain}.{resource}.{action}
+   *
+   * @param domain - Business domain
+   * @param resource - Resource type
+   * @param action - Event action
+   * @returns NATS subject string
+   */
+  public eventSubject(domain: string, resource: string, action: string): string {
+    return `${this.config.env}.${this.config.appName}.${domain}.${resource}.${action}`;
   }
 
   public get logger(): Logger {

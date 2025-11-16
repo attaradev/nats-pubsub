@@ -16,7 +16,7 @@ module NatsPubsub
 
       @max_deliver = 5
       @ack_wait    = '30s'
-      @backoff     = %w[1s 5s 15s 30s 60s]
+      @backoff     = %w[1s 5s 15s]
 
       @use_outbox   = false
       @use_inbox    = false
@@ -37,14 +37,15 @@ module NatsPubsub
       "#{env}-events-stream"
     end
 
-    # PubSub event subject format: {env}.events.{domain}.{resource}.{action}
+    # PubSub event subject format
+    # Format: {env}.{app_name}.{domain}.{resource}.{action}
     def event_subject(domain, resource, action)
-      "#{env}.events.#{domain}.#{resource}.#{action}"
+      "#{env}.#{app_name}.#{domain}.#{resource}.#{action}"
     end
 
     # DLQ subject for failed messages
     def dlq_subject
-      "#{env}.events.dlq"
+      "#{env}.#{app_name}.dlq"
     end
 
     # DLQ stream name

@@ -242,12 +242,25 @@ export class Consumer {
           await this.middlewareChain.execute(envelope.payload, metadata, async () => {
             // Per-subscriber timeout guard
             if (cfg.subscriberTimeoutMs && cfg.subscriberTimeoutMs > 0) {
-              await Promise.race([
-                subscriber.call(envelope.payload, metadata),
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('subscriber_timeout')), cfg.subscriberTimeoutMs)
-                ),
-              ]);
+              let timeoutId: NodeJS.Timeout | undefined;
+              try {
+                await Promise.race([
+                  subscriber.call(envelope.payload, metadata),
+                  new Promise((_, reject) => {
+                    timeoutId = setTimeout(
+                      () => reject(new Error('subscriber_timeout')),
+                      cfg.subscriberTimeoutMs
+                    );
+                    // Use unref() to allow process to exit even if timeout is pending
+                    timeoutId?.unref();
+                  }),
+                ]);
+              } finally {
+                // Always clear the timeout to prevent leaks
+                if (timeoutId !== undefined) {
+                  clearTimeout(timeoutId);
+                }
+              }
             } else {
               await subscriber.call(envelope.payload, metadata);
             }

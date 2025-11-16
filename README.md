@@ -84,7 +84,11 @@ pnpm add nats-pubsub
 
 ### Core Capabilities
 
-- 🎯 Declarative subscriber API
+- 🎯 **Dual Messaging Patterns**
+  - Topic-based messaging for flexible pub/sub (recommended)
+  - Domain/Resource/Action pattern for event sourcing
+- 🔌 Declarative subscriber API
+- 🌲 Hierarchical topics with wildcard subscriptions
 - 🧨 Dead Letter Queue (DLQ) support
 - ⚙️ Durable pull consumers with exponential backoff
 - 🎭 Middleware system for extensibility
@@ -108,7 +112,11 @@ pnpm add nats-pubsub
 
 Both implementations use identical event formats, enabling seamless interoperability between Ruby and JavaScript services.
 
-For detailed feature documentation, see each package’s README.
+**📖 Learn More:**
+
+- [Topic-Based Messaging Guide](./TOPIC_PUBSUB.md) - Flexible pub/sub with hierarchical topics
+- [Ruby Package Docs](./packages/ruby/README.md) - Full Ruby documentation
+- [JavaScript Package Docs](./packages/javascript/README.md) - Full JavaScript documentation
 
 ---
 

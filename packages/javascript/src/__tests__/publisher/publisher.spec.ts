@@ -52,7 +52,7 @@ describe('Publisher', () => {
       expect(connection.ensureConnection).toHaveBeenCalled();
       expect(connection.getJetStream).toHaveBeenCalled();
       expect(mockJetstream.publish).toHaveBeenCalledWith(
-        'test.events.users.user.created',
+        'test.test-app.users.user.created',
         expect.any(String),
         expect.objectContaining({
           msgID: expect.any(String),
@@ -78,13 +78,15 @@ describe('Publisher', () => {
       expect(envelope).toEqual({
         event_id: 'custom-event-id',
         schema_version: 1,
-        event_type: 'created',
+        topic: 'users.user.created',
         producer: 'test-app',
-        resource_type: 'user',
+        domain: 'users',
+        resource: 'user',
+        action: 'created',
         resource_id: '123',
         occurred_at: '2025-01-01T00:00:00.000Z',
         trace_id: 'trace-123',
-        payload,
+        message: payload,
       });
     });
 
@@ -141,8 +143,9 @@ describe('Publisher', () => {
 
       await publisher.publish('users', 'user', 'created', payload);
 
-      expect(mockHeaders.set).toHaveBeenCalledTimes(1);
+      expect(mockHeaders.set).toHaveBeenCalledTimes(2);
       expect(mockHeaders.set).toHaveBeenCalledWith('Nats-Msg-Id', expect.any(String));
+      expect(mockHeaders.set).toHaveBeenCalledWith('topic', 'users.user.created');
     });
 
     it('should extract resource_id from payload.id', async () => {
@@ -187,7 +190,7 @@ describe('Publisher', () => {
       await publisher.publish('orders', 'order', 'placed', payload);
 
       expect(mockJetstream.publish).toHaveBeenCalledWith(
-        'test.events.orders.order.placed',
+        'test.test-app.orders.order.placed',
         expect.any(String),
         expect.any(Object)
       );
@@ -229,7 +232,7 @@ describe('Publisher', () => {
       const envelopeJson = publishCall[1];
       const envelope = JSON.parse(envelopeJson);
 
-      expect(subject).toBe('production.events.users.user.created');
+      expect(subject).toBe('production.prod-app.users.user.created');
       expect(envelope.producer).toBe('prod-app');
     });
   });

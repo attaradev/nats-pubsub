@@ -82,9 +82,9 @@ module NatsPubsub
         filter_subject: filter_subject,
         ack_policy: 'explicit',
         deliver_policy: 'all',
-        max_deliver: NatsPubsub.config.max_deliver,
-        ack_wait: Duration.to_millis(NatsPubsub.config.ack_wait),
-        backoff: Array(NatsPubsub.config.backoff).map { |d| Duration.to_millis(d) }
+        max_deliver: @cfg.max_deliver,
+        ack_wait: Duration.to_millis(@cfg.ack_wait),
+        backoff: Array(@cfg.backoff).map { |d| Duration.to_millis(d) }
       }
     end
 
@@ -97,7 +97,7 @@ module NatsPubsub
         deliver_policy: sval(cfg, :deliver_policy), # string
         max_deliver: ival(cfg, :max_deliver), # integer
         ack_wait: d_ms(cfg, :ack_wait), # integer ms
-        backoff_ms: darr_ms(cfg, :backoff) # array of integer ms
+        backoff: darr_ms(cfg, :backoff) # array of integer ms
       }
     end
 
@@ -139,7 +139,15 @@ module NatsPubsub
     # ---- cfg access/normalization (struct-like or hash-like) ----
 
     def get(cfg, key)
-      cfg.respond_to?(key) ? cfg.public_send(key) : cfg[key]
+      # First try hash-like access, then method access
+      # This avoids calling Hash#key or other built-in methods unintentionally
+      if cfg.is_a?(Hash) || cfg.respond_to?(:[])
+        cfg[key]
+      elsif cfg.respond_to?(key)
+        cfg.public_send(key)
+      else
+        nil
+      end
     end
 
     def sval(cfg, key)
