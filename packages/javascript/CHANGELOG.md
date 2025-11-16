@@ -1,4 +1,16 @@
-# Changelog
+## [Unreleased]
+
+## [0.1.0] - 2025-11-16
+
+### Changes
+- chore: fix for publishing
+- chore(deps-javascript)(deps-dev): bump eslint in /packages/javascript
+- chore(deps-javascript)(deps-dev): bump @typescript-eslint/eslint-plugin
+- chore(deps-javascript)(deps-dev): bump @typescript-eslint/parser
+- chore(deps-javascript)(deps-dev): bump @types/jest
+- chore(deps-javascript)(deps-dev): bump jest in /packages/javascript
+- feat: initial commit
+
 
 All notable changes to this project will be documented in this file.
 
