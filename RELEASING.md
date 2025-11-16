@@ -1,6 +1,6 @@
 # Release Process
 
-This guide describes how to release packages in the NatsPubsub monorepo.
+This document describes the release process for the nats-pubsub monorepo, which contains both JavaScript/TypeScript and Ruby packages.
 
 ## Quick Start
 
@@ -81,7 +81,7 @@ Migration: Replace client.connect() with client.initialize()
    pnpm changeset
    ```
 
-2. **PR is merged to develop**
+2. **PR is merged to main**
 
 3. **Changesets bot creates Release PR:**
    - Updates package versions
@@ -171,7 +171,7 @@ The version is already published. Wait for next change or manually bump version.
 If you see `EOTP This operation requires a one-time password`:
 
 1. **Use an Automation Token (Recommended)**
-   - Go to https://www.npmjs.com/settings/[username]/tokens
+   - Go to <https://www.npmjs.com/settings/[username]/tokens>
    - Create a new **Automation** token (not Classic or Publish)
    - Update GitHub secret `NPM_TOKEN` with the new token
    - Automation tokens bypass 2FA for CI/CD
@@ -187,13 +187,40 @@ If you see `EOTP This operation requires a one-time password`:
 - Check workflow logs in Actions tab
 - Manually create version: `pnpm changeset version`
 
+## Commit Message Convention
+
+All commits must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```md
+<type>(<scope>): <subject>
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+
+**Scopes:** `javascript`, `ruby`, `deps`, `release`, `ci`, `docs`, `monorepo`
+
+**Examples:**
+
+```bash
+feat(javascript): add retry mechanism for failed messages
+fix(ruby): correct stream name validation
+docs: update installation instructions
+chore(deps): bump typescript to 5.9.0
+```
+
+## Emergency Releases & Rollback
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed emergency release and rollback procedures.
+
 ## Resources
 
 - [Changesets Documentation](https://github.com/changesets/changesets)
 - [Semantic Versioning](https://semver.org/)
+- [Conventional Commits](https://www.conventionalcommits.org/)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Questions?
 
-- Open an issue for release questions
-- Contact: <mpyebattara@gmail.com>
+- Open an issue: <https://github.com/attaradev/nats-pubsub/issues>
+- Check CI logs: <https://github.com/attaradev/nats-pubsub/actions>
+- Review releases: <https://github.com/attaradev/nats-pubsub/releases>

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-01-16
 
 ### Added
+
 - Initial release of Ruby implementation
 - Core configuration system with Rails integration
 - NATS JetStream connection management with auto-reconnect
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation
 
 ### Features
+
 - Subject pattern: `{env}.events.{domain}.{resource}.{action}`
 - Automatic stream topology provisioning with overlap prevention
 - Configurable concurrency and backoff strategies
@@ -40,15 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model utilities for event codec setup
 
 ### Infrastructure
+
 - Rails Railtie for automatic integration
 - ActiveRecord model support for Inbox/Outbox
 - Sinatra-based Web UI
 - RuboCop configuration for code quality
 - RSpec test suite with comprehensive coverage
 
----
-
-## Future Releases
-
-Track upcoming features and improvements at:
-https://github.com/attaradev/nats_pubsub/issues
+[unreleased]: https://github.com/attaradev/nats-pubsub/compare/ruby-v0.1.0...HEAD
+[0.1.0]: https://github.com/attaradev/nats-pubsub/releases/tag/ruby-v0.1.0

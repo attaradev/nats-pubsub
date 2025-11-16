@@ -19,7 +19,24 @@
     "release:status": "./scripts/release-status.sh",
     "release:preview": "./scripts/release-preview.sh",
     "release:check": "./scripts/release-check.sh",
-    "release:version": "changeset version && pnpm install --no-frozen-lockfile"
+    "release:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "prepare": "husky",
+    "commit": "git-cz"
+  },
+  "lint-staged": {
+    "packages/javascript/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "cd packages/javascript && eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.js": [
+      "prettier --write"
+    ],
+    "packages/ruby/**/*.rb": [
+      "cd packages/ruby && bundle exec rubocop -A"
+    ]
   },
   "repository": {
     "type": "git",
@@ -41,6 +58,10 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.7",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "^3.3.2",
     "tsup": "^8.5.1"
   },

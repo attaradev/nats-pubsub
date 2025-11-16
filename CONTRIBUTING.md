@@ -250,8 +250,8 @@ Then run integration tests for both packages.
    ```bash
    git remote add upstream https://github.com/attaradev/nats_pubsub.git
    git fetch upstream
-   git checkout develop
-   git merge upstream/develop
+   git checkout main
+   git merge upstream/main
    ```
 
 2. **Create a feature branch**
@@ -302,8 +302,9 @@ Then run integration tests for both packages.
 - **Update documentation**: Update README or docs if needed
 - **Follow commit conventions**: Use conventional commits
 - **Keep it small**: Smaller PRs are easier to review
-- **Resolve conflicts**: Rebase on latest develop before submitting
+- **Resolve conflicts**: Rebase on latest main before submitting
 - **CI must pass**: Ensure all GitHub Actions checks pass
+- **Add changeset**: Include a changeset for package changes
 
 ## Package-Specific Guidelines
 
@@ -340,11 +341,78 @@ For information about releasing packages, see [RELEASING.md](./RELEASING.md). Th
 - Emergency hotfix processes
 - Version policy guidelines
 
+## Emergency Releases & Rollback
+
+### Hotfix Process
+
+For critical production issues:
+
+1. **Create hotfix branch from main**
+
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b hotfix/critical-issue-description
+   ```
+
+2. **Make the fix and test thoroughly**
+
+3. **Add changeset (for JS) or update version (for Ruby)**
+
+   ```bash
+   pnpm changeset:add  # For JavaScript fixes
+   ```
+
+4. **Create PR with `[HOTFIX]` prefix**
+
+   ```bash
+   gh pr create --title "fix: [HOTFIX] critical bug description"
+   ```
+
+5. **Request immediate review and merge**
+
+6. **Monitor release pipeline closely**
+
+### Rollback Procedures
+
+#### NPM Package Rollback
+
+```bash
+# Deprecate the bad version
+npm deprecate nats-pubsub@X.Y.Z "Critical bug. Use X.Y.Z-1 instead"
+
+# Publish fixed version
+pnpm changeset:add  # Select patch
+# ... follow normal release
+```
+
+#### RubyGems Rollback
+
+```bash
+# Yank the version (use with extreme caution)
+gem yank nats_pubsub -v X.Y.Z
+
+# Or publish new fixed version
+# ... follow normal Ruby release
+```
+
+#### Git Tag Rollback
+
+```bash
+# Delete tag locally and remotely
+git tag -d javascript-vX.Y.Z
+git push origin :refs/tags/javascript-vX.Y.Z
+
+# Delete GitHub release
+gh release delete javascript-vX.Y.Z --yes
+```
+
 ## Questions?
 
 - Open an issue for bugs or feature requests
 - Start a discussion for questions or ideas
-- Contact maintainers at <mpyebattara@gmail.com>
+- Review documentation: [RELEASING.md](./RELEASING.md)
+- Check CI logs: <https://github.com/attaradev/nats-pubsub/actions>
 
 ## License
 

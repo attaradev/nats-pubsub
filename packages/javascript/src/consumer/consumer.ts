@@ -221,18 +221,86 @@ export class Consumer {
         error,
       });
 
-      // Check if we've exceeded max_deliver
-      if (msg.info && msg.info.deliveryCount >= (config.get().maxDeliver || 5)) {
-        logger.warn('Message exceeded max_deliver, moving to DLQ', {
-          subject: msg.subject,
-          deliveries: msg.info.deliveryCount,
-        });
-        msg.ack(); // Ack to remove from original subject
-        // In production, you'd publish to DLQ here
-      } else {
-        msg.nak(); // Negative acknowledge for retry
+      await this.handleFailure(msg, error);
+    }
+  }
+
+  /**
+   * Handle processing failures with DLQ support
+   */
+  private async handleFailure(msg: JsMsg, error: unknown): Promise<void> {
+    const logger = config.logger;
+    const cfg = config.get();
+    const deliveries = msg.info?.deliveryCount ?? 0;
+    const maxDeliver = cfg.maxDeliver || 5;
+    const exceededMaxDeliver = deliveries >= maxDeliver;
+
+    if (cfg.useDlq) {
+      try {
+        await this.publishToDlq(
+          msg,
+          error,
+          exceededMaxDeliver ? 'max_deliver_exceeded' : 'handler_error'
+        );
+        // Only ack after DLQ publish succeeds
+        msg.ack();
+        return;
+      } catch (dlqError) {
+        logger.error('Failed to publish to DLQ', { subject: msg.subject, error: dlqError });
+        // Fall through to NAK so the message can be retried
       }
     }
+
+    if (exceededMaxDeliver) {
+      logger.warn('Message exceeded max_deliver; dropping', {
+        subject: msg.subject,
+        deliveries,
+      });
+      msg.ack();
+    } else {
+      msg.nak(); // Negative acknowledge for retry
+    }
+  }
+
+  /**
+   * Publish a failed message to the DLQ with context
+   */
+  private async publishToDlq(msg: JsMsg, error: unknown, reason: string): Promise<void> {
+    const js = connection.getJetStream();
+    const cfg = config.get();
+    const rawPayload = msg.data?.toString() ?? '';
+    let parsedPayload: unknown;
+
+    try {
+      parsedPayload = JSON.parse(rawPayload);
+    } catch {
+      parsedPayload = rawPayload; // Keep raw if not JSON
+    }
+
+    const payload = {
+      event_id:
+        (parsedPayload as { event_id?: string })?.event_id ||
+        msg.headers?.get('nats-msg-id') ||
+        msg.sid.toString(),
+      original_subject: msg.subject,
+      payload: parsedPayload,
+      deliveries: msg.info?.deliveryCount ?? 0,
+      reason,
+      error:
+        error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? 'unknown'),
+      occurred_at: new Date().toISOString(),
+    };
+
+    if (!cfg.dlqSubject) {
+      throw new Error('DLQ subject is not configured');
+    }
+
+    await js.publish(cfg.dlqSubject, Buffer.from(JSON.stringify(payload)));
+    config.logger.warn('Message moved to DLQ', {
+      subject: msg.subject,
+      deliveries: msg.info?.deliveryCount,
+      reason,
+    });
   }
 
   /**

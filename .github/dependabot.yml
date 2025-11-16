@@ -1,47 +1,154 @@
 version: 2
 updates:
-  # Enable version updates for npm (JavaScript package)
+  # JavaScript/TypeScript package dependencies
   - package-ecosystem: "npm"
     directory: "/packages/javascript"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+      time: "09:00"
+    open-pull-requests-limit: 5
     assignees:
       - "attaradev"
     labels:
       - "dependencies"
       - "javascript"
+      - "automated"
     commit-message:
       prefix: "chore(deps-javascript)"
       include: "scope"
+    # Group related dependency updates
+    groups:
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+          - "ts-*"
+      testing:
+        patterns:
+          - "jest"
+          - "@jest/*"
+          - "@types/jest"
+          - "ts-jest"
+      linting:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-*"
+          - "@typescript-eslint/*"
+      build-tools:
+        patterns:
+          - "tsup"
+          - "typedoc"
+          - "prettier"
+    # Security updates get their own PRs immediately
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore major version updates for stable dependencies
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
-  # Enable version updates for Bundler (Ruby package)
+  # Ruby package dependencies
   - package-ecosystem: "bundler"
     directory: "/packages/ruby"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+      time: "09:00"
+    open-pull-requests-limit: 5
     assignees:
       - "attaradev"
     labels:
       - "dependencies"
       - "ruby"
+      - "automated"
     commit-message:
       prefix: "chore(deps-ruby)"
       include: "scope"
+    # Group related dependency updates
+    groups:
+      rails:
+        patterns:
+          - "rails"
+          - "activerecord"
+          - "activesupport"
+      testing:
+        patterns:
+          - "rspec"
+          - "rspec-*"
+      linting:
+        patterns:
+          - "rubocop"
+          - "rubocop-*"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore major version updates for Rails (requires manual testing)
+    ignore:
+      - dependency-name: "activerecord"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "activesupport"
+        update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
+  # Monorepo root dependencies (changesets, commitlint, etc.)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    assignees:
+      - "attaradev"
+    labels:
+      - "dependencies"
+      - "monorepo"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      changesets:
+        patterns:
+          - "@changesets/*"
+      commitlint:
+        patterns:
+          - "@commitlint/*"
+          - "commitlint"
+      husky:
+        patterns:
+          - "husky"
+          - "lint-staged"
+    allow:
+      - dependency-type: "direct"
+
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
     assignees:
       - "attaradev"
     labels:
       - "dependencies"
       - "github-actions"
+      - "ci"
+      - "automated"
     commit-message:
       prefix: "chore(deps-actions)"
+      include: "scope"
+    # Group related action updates
+    groups:
+      setup-actions:
+        patterns:
+          - "actions/setup-*"
+          - "actions/checkout"
+      publishing:
+        patterns:
+          - "changesets/action"
+          - "softprops/action-gh-release"

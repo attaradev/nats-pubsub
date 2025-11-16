@@ -61,8 +61,8 @@ export class PrometheusMetrics {
     consumerLag?: PromClientGauge;
   } = {};
 
-  private config: MetricsConfig;
-  private server: unknown;
+  private config: Required<MetricsConfig>;
+  private server?: { listen(port: number, callback: () => void): void; close(): void };
 
   constructor(config: MetricsConfig = {}) {
     this.config = {
@@ -197,7 +197,19 @@ export class PrometheusMetrics {
     subscriber: string,
     errorType: string
   ): void {
-    this.metrics.messagesFailed?.inc({ subject, domain, resource, action, subscriber, error_type: errorType });
+    this.metrics.messagesFailed?.inc({
+      subject,
+      domain,
+      resource,
+      action,
+      subscriber,
+      error_type: errorType,
+    });
+  }
+
+  // Increment DLQ counter
+  recordDlqMessage(subject: string, reason: string): void {
+    this.metrics.dlqMessages?.inc({ subject, reason });
   }
 
   // Record processing duration
@@ -209,12 +221,10 @@ export class PrometheusMetrics {
     subscriber: string,
     durationSeconds: number
   ): void {
-    this.metrics.processingDuration?.observe({ subject, domain, resource, action, subscriber }, durationSeconds);
-  }
-
-  // Increment DLQ messages counter
-  recordDlqMessage(subject: string, reason: string): void {
-    this.metrics.dlqMessages?.inc({ subject, reason });
+    this.metrics.processingDuration?.observe(
+      { subject, domain, resource, action, subscriber },
+      durationSeconds
+    );
   }
 
   // Record publish attempt
@@ -259,11 +269,16 @@ export class PrometheusMetrics {
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const http = require('http') as {
-      createServer(callback: (req: { url?: string }, res: {
-        setHeader(name: string, value: string): void;
-        end(data?: string): void;
-        statusCode: number;
-      }) => void): { listen(port: number, callback: () => void): void; close(): void };
+      createServer(
+        callback: (
+          req: { url?: string },
+          res: {
+            setHeader(name: string, value: string): void;
+            end(data?: string): void;
+            statusCode: number;
+          }
+        ) => void
+      ): { listen(port: number, callback: () => void): void; close(): void };
     };
 
     this.server = http.createServer(async (req, res) => {
@@ -280,14 +295,14 @@ export class PrometheusMetrics {
     });
 
     this.server.listen(serverPort, () => {
-      console.log(`Metrics server listening on http://localhost:${serverPort}${this.config.endpoint}`);
+      console.log(
+        `Metrics server listening on http://localhost:${serverPort}${this.config.endpoint}`
+      );
     });
   }
 
   // Stop HTTP server
   stopServer(): void {
-    if (this.server && typeof this.server === 'object' && 'close' in this.server) {
-      (this.server as { close(): void }).close();
-    }
+    this.server?.close();
   }
 }

@@ -2,11 +2,6 @@ name: Release
 
 on:
   workflow_call:
-    secrets:
-      NPM_TOKEN:
-        required: false
-      RUBYGEMS_API_KEY:
-        required: false
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -21,8 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Create Release PR or Publish
+  prepare:
+    name: Prepare release inputs
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_call' || (
@@ -31,6 +26,127 @@ jobs:
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_branch == 'main'
       )
+    outputs:
+      has_changesets: ${{ steps.changeset_status.outputs.has_changesets }}
+      ruby_changed: ${{ steps.ruby_status.outputs.ruby_changed }}
+      ruby_version: ${{ steps.ruby_status.outputs.ruby_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run security audit (JavaScript)
+        id: security_audit_js
+        continue-on-error: true
+        run: |
+          echo "Running npm audit..."
+          pnpm audit --audit-level=high --json > /tmp/npm-audit.json || true
+          VULNERABILITIES=$(jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' /tmp/npm-audit.json || echo "0")
+
+          if [ "$VULNERABILITIES" -gt 0 ]; then
+            echo "⚠️ Found $VULNERABILITIES high/critical vulnerabilities"
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No high/critical vulnerabilities found"
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate package builds
+        run: |
+          echo "Building JavaScript package..."
+          cd packages/javascript
+          pnpm build
+
+          # Verify build artifacts exist
+          if [ ! -f "dist/index.js" ] || [ ! -f "dist/index.cjs" ]; then
+            echo "❌ Build artifacts missing"
+            exit 1
+          fi
+          echo "✅ JavaScript build successful"
+
+      - name: Check for pending changesets
+        id: changeset_status
+        run: |
+          set +e
+          pnpm changeset status --output=json > /tmp/changeset-status.json
+          STATUS=$?
+          set -e
+
+          if [ $STATUS -ne 0 ]; then
+            echo "No changesets found (changeset status exited $STATUS)"
+            echo "has_changesets=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          COUNT=$(jq '.releases | length' /tmp/changeset-status.json)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "Found $COUNT pending changeset release(s)"
+            echo "has_changesets=true" >> $GITHUB_OUTPUT
+          else
+            echo "No pending changesets to release"
+            echo "has_changesets=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect Ruby version change
+        id: ruby_status
+        run: |
+          BEFORE="${{ github.event.before || '' }}"
+          AFTER="${{ github.sha }}"
+
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${BEFORE}..${AFTER}"
+          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
+            RANGE="HEAD~1..HEAD"
+          else
+            RANGE=""
+          fi
+
+          if [ -n "$RANGE" ]; then
+            CHANGED=$(git diff --name-only "$RANGE" -- packages/ruby/lib/nats_pubsub/version.rb || true)
+          else
+            CHANGED=$(git show --name-only --pretty="" "$AFTER" -- packages/ruby/lib/nats_pubsub/version.rb || true)
+          fi
+
+          if echo "$CHANGED" | grep -q "packages/ruby/lib/nats_pubsub/version.rb"; then
+            echo "Ruby version file changed"
+            RUBY_CHANGED=true
+            RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
+          else
+            echo "No Ruby version changes detected"
+            RUBY_CHANGED=false
+            RUBY_VERSION=""
+          fi
+
+          echo "ruby_changed=${RUBY_CHANGED}" >> $GITHUB_OUTPUT
+          echo "ruby_version=${RUBY_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Validate Ruby version (if changed)
+        if: steps.ruby_status.outputs.ruby_changed == 'true'
+        run: |
+          echo "Validating Ruby version..."
+          ./scripts/ruby-version-sync.sh
+
+  release:
+    name: Create Release PR or Publish (JS)
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.has_changesets == 'true'
 
     steps:
       - name: Checkout code
@@ -60,10 +176,9 @@ jobs:
           publish: pnpm changeset:publish
           commit: "chore: version packages"
           title: "chore: version packages"
-          createGithubReleases: false  # We'll create custom releases
+          createGithubReleases: false # We'll create custom releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
       - name: Get published packages info
@@ -109,22 +224,53 @@ jobs:
         run: |
           echo "Waiting 10 seconds for npm registry propagation..."
           sleep 10
+
+          # Verify package exists
           npm view nats-pubsub@${{ steps.packages.outputs.js_version }} || {
             echo "Warning: Package not found on npm registry yet. This might be expected if there was a publication delay."
             exit 0
           }
+
+          # Verify package metadata
+          echo "Verifying package metadata..."
+          PUBLISHED_VERSION=$(npm view nats-pubsub@${{ steps.packages.outputs.js_version }} version)
+          if [ "$PUBLISHED_VERSION" != "${{ steps.packages.outputs.js_version }}" ]; then
+            echo "❌ Version mismatch: expected ${{ steps.packages.outputs.js_version }}, got $PUBLISHED_VERSION"
+            exit 1
+          fi
+
+          # Check package size
+          SIZE=$(npm view nats-pubsub@${{ steps.packages.outputs.js_version }} dist.unpackedSize)
+          echo "Package size: $SIZE bytes"
+
+          # Verify provenance
+          echo "Checking provenance attestation..."
+          npm view nats-pubsub@${{ steps.packages.outputs.js_version }} publishConfig || true
+
           echo "✓ Package successfully published and available on npm"
+
+      - name: Test package installation
+        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
+        run: |
+          echo "Testing package installation..."
+          mkdir -p /tmp/test-install
+          cd /tmp/test-install
+          npm init -y
+          npm install nats-pubsub@${{ steps.packages.outputs.js_version }}
+
+          # Verify installation
+          if [ ! -d "node_modules/nats-pubsub" ]; then
+            echo "❌ Package installation failed"
+            exit 1
+          fi
+
+          echo "✓ Package installs successfully"
 
   release-ruby:
     name: Release Ruby Package
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_call' || (
-        github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main'
-      )
+    needs: prepare
+    if: needs.prepare.outputs.ruby_changed == 'true'
 
     steps:
       - name: Checkout code
@@ -132,39 +278,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for Ruby version changes
-        id: check_ruby
-        run: |
-          # Check if Ruby package version was updated in this push
-          BEFORE="${{ github.event.before || '' }}"
-          AFTER="${{ github.sha }}"
-
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            RANGE="${BEFORE}..${AFTER}"
-          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
-            RANGE="HEAD~1..HEAD"
-          else
-            echo "First commit detected; treating it as potentially changing all files"
-            RANGE=""
-          fi
-
-          if [ -n "$RANGE" ]; then
-            CHANGED=$(git diff --name-only "$RANGE" -- packages/ruby/lib/nats_pubsub/version.rb || true)
-          else
-            # First commit: inspect the commit contents
-            CHANGED=$(git show --name-only --pretty="" "$AFTER" -- packages/ruby/lib/nats_pubsub/version.rb || true)
-          fi
-
-          if echo "$CHANGED" | grep -q "packages/ruby/lib/nats_pubsub/version.rb"; then
-            echo "Ruby version file changed"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-          else
-            echo "No Ruby version changes detected"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Ruby
-        if: steps.check_ruby.outputs.should_release == 'true'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
@@ -172,21 +286,44 @@ jobs:
           working-directory: packages/ruby
           rubygems: latest
 
-      - name: Get Ruby version
-        if: steps.check_ruby.outputs.should_release == 'true'
-        id: ruby_version
+      - name: Run security audit (Ruby)
+        continue-on-error: true
         run: |
           cd packages/ruby
-          VERSION=$(ruby -e "require_relative 'lib/nats_pubsub/version.rb'; puts NatsPubsub::VERSION")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Ruby version: $VERSION"
+          echo "Installing bundler-audit..."
+          gem install bundler-audit
+
+          echo "Updating vulnerability database..."
+          bundle audit update
+
+          echo "Running security audit..."
+          bundle audit check --verbose || {
+            echo "⚠️ Security vulnerabilities found in Ruby dependencies"
+            echo "Review and address before releasing if critical"
+          }
+
+      - name: Validate gem build
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+        run: |
+          cd packages/ruby
+          echo "Building gem..."
+          gem build nats_pubsub.gemspec
+
+          # Verify gem was created
+          if [ ! -f "nats_pubsub-${RUBY_VERSION}.gem" ]; then
+            echo "❌ Gem build failed"
+            exit 1
+          fi
+          echo "✅ Gem built successfully: nats_pubsub-${RUBY_VERSION}.gem"
 
       - name: Check if tag exists
-        if: steps.check_ruby.outputs.should_release == 'true'
         id: check_tag
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
-          if git rev-parse "ruby-v${{ steps.ruby_version.outputs.version }}" >/dev/null 2>&1; then
-            echo "Tag ruby-v${{ steps.ruby_version.outputs.version }} already exists"
+          if git rev-parse "ruby-v${RUBY_VERSION}" >/dev/null 2>&1; then
+            echo "Tag ruby-v${RUBY_VERSION} already exists"
             echo "tag_exists=true" >> $GITHUB_OUTPUT
           else
             echo "Tag does not exist, will create it"
@@ -194,44 +331,73 @@ jobs:
           fi
 
       - name: Create Git tag
-        if: steps.check_ruby.outputs.should_release == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        if: steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "ruby-v${{ steps.ruby_version.outputs.version }}" -m "Release ruby-v${{ steps.ruby_version.outputs.version }} [skip ci]"
-          git push origin "ruby-v${{ steps.ruby_version.outputs.version }}"
+          git tag -a "ruby-v${RUBY_VERSION}" -m "Release ruby-v${RUBY_VERSION} [skip ci]"
+          git push origin "ruby-v${RUBY_VERSION}"
 
       - name: Build gem
-        if: steps.check_ruby.outputs.should_release == 'true'
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
           cd packages/ruby
           gem build nats_pubsub.gemspec
 
       - name: Publish to RubyGems
-        if: steps.check_ruby.outputs.should_release == 'true'
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
           cd packages/ruby
           gem push *.gem --oidc
 
       - name: Verify RubyGems publication
-        if: steps.check_ruby.outputs.should_release == 'true'
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
-          echo "Waiting 10 seconds for RubyGems propagation..."
-          sleep 10
-          gem list -r nats_pubsub | grep "nats_pubsub (${{ steps.ruby_version.outputs.version }})" || {
+          echo "Waiting 15 seconds for RubyGems propagation..."
+          sleep 15
+
+          # Verify gem exists
+          gem list -r nats_pubsub | grep "nats_pubsub (${RUBY_VERSION})" || {
             echo "Warning: Gem not found on RubyGems yet. This might be expected if there was a publication delay."
             exit 0
           }
+
+          # Verify gem info
+          echo "Verifying gem metadata..."
+          gem info nats_pubsub -r --version ${RUBY_VERSION} || true
+
           echo "✓ Gem successfully published and available on RubyGems"
 
+      - name: Test gem installation
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+        run: |
+          echo "Testing gem installation..."
+          gem install nats_pubsub -v ${RUBY_VERSION}
+
+          # Verify installation
+          if ! gem list -i nats_pubsub -v ${RUBY_VERSION} >/dev/null 2>&1; then
+            echo "❌ Gem installation failed"
+            exit 1
+          fi
+
+          echo "✓ Gem installs successfully"
+
       - name: Create GitHub Release for Ruby
-        if: steps.check_ruby.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2.4.2
+        env:
+          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ruby-v${{ steps.ruby_version.outputs.version }}
-          name: Ruby v${{ steps.ruby_version.outputs.version }}
+          tag_name: ruby-v${{ env.RUBY_VERSION }}
+          name: Ruby v${{ env.RUBY_VERSION }}
           body: |
-            Ruby package release v${{ steps.ruby_version.outputs.version }}
+            Ruby package release v${{ env.RUBY_VERSION }}
 
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for details.
 
@@ -239,15 +405,13 @@ jobs:
 
             ```ruby
             # Gemfile
-            gem 'nats_pubsub', '~> ${{ steps.ruby_version.outputs.version }}'
+            gem 'nats_pubsub', '~> ${{ env.RUBY_VERSION }}'
             ```
 
             Or via command line:
             ```bash
-            gem install nats_pubsub -v ${{ steps.ruby_version.outputs.version }}
+            gem install nats_pubsub -v ${{ env.RUBY_VERSION }}
             ```
           files: packages/ruby/*.gem
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
