@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ruby: ${{ steps.filter.outputs.ruby }}
+      javascript: ${{ steps.filter.outputs.javascript }}
+    steps:
+      - uses: actions/checkout@v5.0.0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ruby:
+              - 'packages/ruby/**'
+              - '.github/workflows/test-rb.yml'
+              - '.github/workflows/release-rb.yml'
+              - '.github/workflows/ci.yml'
+            javascript:
+              - 'packages/javascript/**'
+              - '.github/workflows/test-js.yml'
+              - '.github/workflows/release-js.yml'
+              - '.github/workflows/ci.yml'
+
+  ruby-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ruby == 'true'
+    uses: ./.github/workflows/test-rb.yml
+
+  javascript-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.javascript == 'true'
+    uses: ./.github/workflows/test-js.yml
+
+  ruby-release:
+    needs: [detect-changes, ruby-tests]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.detect-changes.outputs.ruby == 'true'
+    uses: ./.github/workflows/release-rb.yml
+    permissions:
+      contents: write
+      id-token: write
+
+  javascript-release:
+    needs: [detect-changes, javascript-tests]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.detect-changes.outputs.javascript == 'true'
+    uses: ./.github/workflows/release-js.yml
+    permissions:
+      contents: write
+      id-token: write

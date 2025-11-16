@@ -36,9 +36,7 @@ rescue LoadError
 end
 
 # Optionally load ActiveRecord integration
-if defined?(::ActiveRecord)
-  require_relative 'nats_pubsub/active_record/publishable'
-end
+require_relative 'nats_pubsub/active_record/publishable' if defined?(ActiveRecord)
 
 # NatsPubsub main module.
 module NatsPubsub

@@ -32,6 +32,7 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 ### Prerequisites
 
 - Node.js 24+ (for JavaScript/TypeScript package)
+- pnpm 10+ (package manager for JavaScript/TypeScript)
 - Ruby 2.7+ (for Ruby package)
 - NATS Server with JetStream enabled
 - Git
@@ -56,8 +57,12 @@ bundle install
 #### JavaScript/TypeScript Package
 
 ```bash
+# From monorepo root
+pnpm install
+
+# Or from package directory
 cd packages/javascript
-npm install
+pnpm install
 ```
 
 ### Using Docker Compose
@@ -109,13 +114,13 @@ Follow the Airbnb JavaScript Style Guide. Run ESLint:
 
 ```bash
 cd packages/javascript
-npm run lint
+pnpm lint
 ```
 
 Format code with Prettier:
 
 ```bash
-npm run format
+pnpm format
 ```
 
 ## Commit Guidelines
@@ -189,13 +194,13 @@ bundle exec rspec spec/path/to/spec.rb
 
 ```bash
 cd packages/javascript
-npm test
+pnpm test
 ```
 
 Run tests in watch mode:
 
 ```bash
-npm run test:watch
+pnpm test:watch
 ```
 
 ### Integration Tests
@@ -238,7 +243,7 @@ Then run integration tests for both packages.
    cd packages/ruby && bundle exec rspec
 
    # JavaScript
-   cd packages/javascript && npm test
+   cd packages/javascript && pnpm test
    ```
 
 5. **Commit your changes**: Use conventional commit format

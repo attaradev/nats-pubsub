@@ -19,9 +19,7 @@ module NatsPubsub
       @cfg.stream_name
     end
 
-    def filter_subject
-      @filter_subject
-    end
+    attr_reader :filter_subject
 
     def desired_consumer_cfg
       @desired_cfg
@@ -53,7 +51,7 @@ module NatsPubsub
     private
 
     def default_filter_subject
-      "#{@cfg.env}.events.>"  # Subscribe to all PubSub events
+      "#{@cfg.env}.events.>" # Subscribe to all PubSub events
     end
 
     def consumer_info_or_nil

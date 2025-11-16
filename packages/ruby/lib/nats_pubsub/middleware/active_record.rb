@@ -4,11 +4,9 @@ module NatsPubsub
   module Middleware
     # Middleware that ensures ActiveRecord connections are properly managed
     class ActiveRecord
-      def call(subscriber, payload, metadata)
+      def call(_subscriber, _payload, _metadata, &)
         if defined?(::ActiveRecord::Base)
-          ::ActiveRecord::Base.connection_pool.with_connection do
-            yield
-          end
+          ::ActiveRecord::Base.connection_pool.with_connection(&)
         else
           yield
         end

@@ -18,24 +18,51 @@ export interface MetricsConfig {
   labels?: Record<string, string>;
 }
 
+interface PromClientCounter {
+  inc(labels: Record<string, string>): void;
+}
+
+interface PromClientHistogram {
+  observe(labels: Record<string, string>, value: number): void;
+}
+
+interface PromClientGauge {
+  set(value: number): void;
+  set(labels: Record<string, string>, value: number): void;
+}
+
+interface PromClientRegistry {
+  metrics(): Promise<string>;
+  setDefaultLabels(labels: Record<string, string>): void;
+  contentType: string;
+}
+
+interface PromClient {
+  Counter: new (config: unknown) => PromClientCounter;
+  Histogram: new (config: unknown) => PromClientHistogram;
+  Gauge: new (config: unknown) => PromClientGauge;
+  Registry: new () => PromClientRegistry;
+  collectDefaultMetrics(config: { register: PromClientRegistry }): void;
+}
+
 export class PrometheusMetrics {
-  private promClient: any;
-  private register: any;
+  private promClient: PromClient;
+  private register: PromClientRegistry;
   private metrics: {
-    messagesReceived?: any;
-    messagesProcessed?: any;
-    messagesFailed?: any;
-    processingDuration?: any;
-    dlqMessages?: any;
-    publishAttempts?: any;
-    publishSuccesses?: any;
-    publishFailures?: any;
-    connectionStatus?: any;
-    consumerLag?: any;
+    messagesReceived?: PromClientCounter;
+    messagesProcessed?: PromClientCounter;
+    messagesFailed?: PromClientCounter;
+    processingDuration?: PromClientHistogram;
+    dlqMessages?: PromClientCounter;
+    publishAttempts?: PromClientCounter;
+    publishSuccesses?: PromClientCounter;
+    publishFailures?: PromClientCounter;
+    connectionStatus?: PromClientGauge;
+    consumerLag?: PromClientGauge;
   } = {};
 
   private config: MetricsConfig;
-  private server: any;
+  private server: unknown;
 
   constructor(config: MetricsConfig = {}) {
     this.config = {
@@ -46,8 +73,8 @@ export class PrometheusMetrics {
     };
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      this.promClient = require('prom-client');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this.promClient = require('prom-client') as PromClient;
       this.register = new this.promClient.Registry();
 
       // Add default labels
@@ -230,10 +257,16 @@ export class PrometheusMetrics {
   startServer(port?: number): void {
     const serverPort = port || this.config.port;
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const http = require('http');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const http = require('http') as {
+      createServer(callback: (req: { url?: string }, res: {
+        setHeader(name: string, value: string): void;
+        end(data?: string): void;
+        statusCode: number;
+      }) => void): { listen(port: number, callback: () => void): void; close(): void };
+    };
 
-    this.server = http.createServer(async (req: any, res: any) => {
+    this.server = http.createServer(async (req, res) => {
       if (req.url === this.config.endpoint) {
         res.setHeader('Content-Type', this.register.contentType);
         res.end(await this.getMetrics());
@@ -253,8 +286,8 @@ export class PrometheusMetrics {
 
   // Stop HTTP server
   stopServer(): void {
-    if (this.server) {
-      this.server.close();
+    if (this.server && typeof this.server === 'object' && 'close' in this.server) {
+      (this.server as { close(): void }).close();
     }
   }
 }

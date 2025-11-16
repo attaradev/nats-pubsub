@@ -76,7 +76,7 @@ gem "nats_pubsub", "~> 0.1"
 Node.js pub/sub library with full TypeScript support and enterprise monitoring.
 
 ```bash
-npm install nats-pubsub
+pnpm add nats-pubsub
 ```
 
 **[📖 Full JavaScript Documentation →](./packages/javascript/README.md)**
@@ -118,13 +118,22 @@ For detailed feature documentation, see the package-specific READMEs.
 ## 🛠️ Development
 
 ```bash
-# Install dependencies
+# Install dependencies (monorepo root)
+pnpm install
+
+# Or install per package
 cd packages/ruby && bundle install
-cd packages/javascript && npm install
+cd packages/javascript && pnpm install
 
 # Run tests
 cd packages/ruby && bundle exec rspec
-cd packages/javascript && npm test
+cd packages/javascript && pnpm test
+
+# Build all packages
+pnpm build
+
+# Lint all packages
+pnpm lint
 ```
 
 **For detailed development guides:**

@@ -10,7 +10,7 @@ export class MiddlewareChain {
   async execute(
     event: Record<string, unknown>,
     metadata: EventMetadata,
-    handler: () => Promise<void>
+    handler: (event: Record<string, unknown>, metadata: EventMetadata) => Promise<void>
   ): Promise<void> {
     let index = 0;
 
@@ -19,7 +19,7 @@ export class MiddlewareChain {
         const middleware = this.middlewares[index++];
         await middleware.call(event, metadata, next);
       } else {
-        await handler();
+        await handler(event, metadata);
       }
     };
 

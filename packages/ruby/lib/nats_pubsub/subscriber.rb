@@ -71,7 +71,7 @@ module NatsPubsub
       # Get the current jetstream options
       #
       # @return [Hash] Options hash
-      def get_jetstream_options
+      def jetstream_options_value
         @jetstream_options || jetstream_options
       end
     end

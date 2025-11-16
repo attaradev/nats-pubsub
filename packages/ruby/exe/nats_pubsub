@@ -11,29 +11,29 @@ options = {
 }
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: nats_pubsub [options]"
+  opts.banner = 'Usage: nats_pubsub [options]'
 
-  opts.on("-r", "--require PATH", "File to require (e.g., ./config/environment.rb)") do |path|
+  opts.on('-r', '--require PATH', 'File to require (e.g., ./config/environment.rb)') do |path|
     options[:require] = path
   end
 
-  opts.on("-e", "--environment ENV", "Environment (default: #{options[:environment]})") do |env|
+  opts.on('-e', '--environment ENV', "Environment (default: #{options[:environment]})") do |env|
     options[:environment] = env
   end
 
-  opts.on("-c", "--concurrency NUM", Integer, "Number of consumer threads (default: 5)") do |n|
+  opts.on('-c', '--concurrency NUM', Integer, 'Number of consumer threads (default: 5)') do |n|
     options[:concurrency] = n
   end
 
-  opts.on("-v", "--verbose", "Verbose logging") do
+  opts.on('-v', '--verbose', 'Verbose logging') do
     options[:verbose] = true
   end
 
-  opts.on("-h", "--help", "Show this help") do
+  opts.on('-h', '--help', 'Show this help') do
     puts opts
     puts "\nExamples:"
-    puts "  nats_pubsub -e production -c 10"
-    puts "  nats_pubsub -r ./config/environment.rb -c 5"
+    puts '  nats_pubsub -e production -c 10'
+    puts '  nats_pubsub -r ./config/environment.rb -c 5'
     exit
   end
 end.parse!

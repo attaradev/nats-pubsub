@@ -2,18 +2,35 @@
   "name": "nats-pubsub",
   "version": "0.1.0",
   "description": "Declarative PubSub messaging for NATS JetStream (Node.js/TypeScript)",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "build:watch": "tsup src/index.ts --format cjs,esm --dts --sourcemap --watch",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "docs": "typedoc --out docs src/index.ts",
     "docs:watch": "typedoc --watch --out docs src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "nats",
@@ -38,6 +55,7 @@
     "nats": "^2.29.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
@@ -50,7 +68,7 @@
     "typescript": "^5.9.0"
   },
   "engines": {
-    "node": ">=24.0.0",
-    "npm": ">=10.0.0"
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
   }
 }

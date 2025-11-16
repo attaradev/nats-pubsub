@@ -3,7 +3,7 @@ import config from '../core/config';
 
 export class LoggingMiddleware implements Middleware {
   async call(
-    event: Record<string, unknown>,
+    _event: Record<string, unknown>,
     metadata: EventMetadata,
     next: () => Promise<void>
   ): Promise<void> {

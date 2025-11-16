@@ -41,18 +41,18 @@ This is the Node.js/TypeScript implementation of NatsPubsub. For the Ruby versio
 ## 📦 Install
 
 ```bash
+pnpm add nats-pubsub
+# or
 npm install nats-pubsub
 # or
 yarn add nats-pubsub
-# or
-pnpm add nats-pubsub
 ```
 
 ### Prerequisites
 
 - Node.js 24+
 - NATS Server with JetStream enabled
-- npm 10+ (or yarn/pnpm)
+- pnpm 10+ (recommended) or npm/yarn
 
 ### Start NATS Server
 
@@ -383,7 +383,7 @@ app.listen(3000);
 ### Process Manager (PM2)
 
 ```bash
-npm install -g pm2
+pnpm add -g pm2
 
 # Start application
 pm2 start dist/index.js --name nats-subscriber
@@ -524,7 +524,7 @@ export default {
 - Ensure TypeScript version compatibility
 - Check `tsconfig.json` configuration
 - Verify all type definitions are installed
-- Run `npm install --save-dev @types/node`
+- Run `pnpm add -D @types/node`
 
 ---
 

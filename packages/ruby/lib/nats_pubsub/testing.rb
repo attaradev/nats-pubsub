@@ -75,9 +75,6 @@ module NatsPubsub
           subscriber = sub_class.new
           subscriber.call(event[:payload], event)
         end
-      rescue => e
-        # Re-raise to maintain test behavior
-        raise
       end
     end
   end

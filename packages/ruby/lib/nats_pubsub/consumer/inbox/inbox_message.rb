@@ -66,12 +66,12 @@ module NatsPubsub
                           .new(deliveries, seq, @consumer, stream)
     end
 
-    def ack(*args, **kwargs)
-      msg.ack(*args, **kwargs) if msg.respond_to?(:ack)
+    def ack(*, **)
+      msg.ack(*, **) if msg.respond_to?(:ack)
     end
 
-    def nak(*args, **kwargs)
-      msg.nak(*args, **kwargs) if msg.respond_to?(:nak)
+    def nak(*, **)
+      msg.nak(*, **) if msg.respond_to?(:nak)
     end
   end
 end

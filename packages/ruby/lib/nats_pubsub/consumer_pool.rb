@@ -48,7 +48,7 @@ module NatsPubsub
 
       if pattern_groups.empty?
         Logging.warn(
-          "No subscription patterns found",
+          'No subscription patterns found',
           tag: 'NatsPubsub::ConsumerPool'
         )
         return
@@ -73,8 +73,9 @@ module NatsPubsub
 
           loop do
             break unless @running
+
             consumer.run!
-          rescue => e
+          rescue StandardError => e
             Logging.error(
               "Consumer crashed: #{e.class} #{e.message}",
               tag: 'NatsPubsub::ConsumerPool'
@@ -125,7 +126,7 @@ module NatsPubsub
 
           begin
             consumer.run!
-          rescue => e
+          rescue StandardError => e
             Logging.error(
               "Consumer crashed for #{pattern}: #{e.class} #{e.message}",
               tag: 'NatsPubsub::ConsumerPool'
@@ -140,7 +141,7 @@ module NatsPubsub
       @consumers << { consumer: consumer, thread: thread, pattern: pattern }
     end
 
-    def route_to_subscribers(event, subject, deliveries, subscribers)
+    def route_to_subscribers(event, subject, deliveries, _subscribers)
       router = MessageRouter.new(@registry)
       router.route(event, subject, deliveries)
     end
@@ -154,7 +155,7 @@ module NatsPubsub
       pattern
         .gsub('.>', '-all')
         .gsub('.*', '-wildcard')
-        .gsub('.', '-')
+        .tr('.', '-')
         .gsub(/[^a-zA-Z0-9\-_]/, '')
         .slice(0, 100) # Limit length for NATS
     end

@@ -15,9 +15,9 @@ module NatsPubsub
   # Example (Standalone):
   #   run NatsPubsub::Web
   class Web < Sinatra::Base
-    set :root, File.expand_path('../../..', __FILE__)
-    set :views, Proc.new { File.join(root, 'lib/nats_pubsub/web/views') }
-    set :public_folder, Proc.new { File.join(root, 'lib/nats_pubsub/web/public') }
+    set :root, File.expand_path('../..', __dir__)
+    set :views, proc { File.join(root, 'lib/nats_pubsub/web/views') }
+    set :public_folder, proc { File.join(root, 'lib/nats_pubsub/web/public') }
 
     helpers do
       def outbox_model
@@ -30,6 +30,7 @@ module NatsPubsub
 
       def format_time(time)
         return 'N/A' unless time
+
         time.strftime('%Y-%m-%d %H:%M:%S %Z')
       end
 
@@ -48,6 +49,7 @@ module NatsPubsub
 
       def truncate(text, length = 50)
         return '' unless text
+
         text = text.to_s
         text.length > length ? "#{text[0...length]}..." : text
       end

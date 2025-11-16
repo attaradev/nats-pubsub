@@ -67,10 +67,10 @@ module NatsPubsub
 
     def nats_servers
       NatsPubsub.config.nats_urls
-                     .to_s
-                     .split(',')
-                     .map(&:strip)
-                     .reject(&:empty?)
+                .to_s
+                .split(',')
+                .map(&:strip)
+                .reject(&:empty?)
     end
 
     def establish_connection(servers)

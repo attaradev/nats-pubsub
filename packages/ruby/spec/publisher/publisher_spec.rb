@@ -26,13 +26,13 @@ RSpec.describe NatsPubsub::Publisher do
   it 'publishes with nats-msg-id header matching envelope event_id' do
     expect(jts).to receive(:publish) do |subject, data, header:|
       envelope = Oj.load(data, mode: :strict)
-      expect(subject).to eq('test.source.sync.dest')
+      expect(subject).to eq('test.events.source.user.created')
       expect(header['nats-msg-id']).to eq(envelope['event_id'])
       ack
     end
 
     expect(
-      publisher.publish(resource_type: 'user', event_type: 'created', payload: payload)
+      publisher.publish_event('source', 'user', 'created', payload)
     ).to be(true)
   end
 end

@@ -157,7 +157,7 @@ describe('BaseSubscriber', () => {
       }
 
       const subscriber = new AsyncSubscriber('test.subject');
-      const event: any = { id: '123' };
+      const event: Record<string, unknown> = { id: '123' };
       const metadata: EventMetadata = {
         event_id: 'evt-123',
         subject: 'test.subject',

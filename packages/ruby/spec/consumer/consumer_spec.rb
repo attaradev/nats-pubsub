@@ -26,7 +26,7 @@ RSpec.describe NatsPubsub::Consumer do
       described_class.new { |*| nil }
       expect(NatsPubsub::SubscriptionManager)
         .to have_received(:new)
-        .with(jts, NatsPubsub.config.durable_name, NatsPubsub.config)
+        .with(jts, NatsPubsub.config.durable_name, NatsPubsub.config, { filter_subject: nil })
       expect(sub_mgr).to have_received(:ensure_consumer!)
       expect(sub_mgr).to have_received(:subscribe!)
     end

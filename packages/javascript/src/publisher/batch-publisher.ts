@@ -1,5 +1,5 @@
-import Publisher from './publisher';
-import Config from '../core/config';
+import publisher from './publisher';
+import config from '../core/config';
 import { PublishOptions } from '../types';
 
 export interface BatchPublishItem {
@@ -22,12 +22,12 @@ export interface BatchPublishResult {
 }
 
 export class BatchPublisher {
-  private publisher: Publisher;
-  private config: Config;
+  private publisher: typeof publisher;
+  private config: typeof config;
 
   constructor() {
-    this.publisher = Publisher.getInstance();
-    this.config = Config.getInstance();
+    this.publisher = publisher;
+    this.config = config;
   }
 
   /**
