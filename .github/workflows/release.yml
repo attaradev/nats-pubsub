@@ -1,0 +1,253 @@
+name: Release
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: false
+      RUBYGEMS_API_KEY:
+        required: false
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create Release PR or Publish
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_call' || (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Create Release PR or Publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset:version
+          publish: pnpm changeset:publish
+          commit: "chore: version packages"
+          title: "chore: version packages"
+          createGithubReleases: false  # We'll create custom releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+      - name: Get published packages info
+        id: packages
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "Published packages:"
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq .
+
+          # Extract JavaScript package version if published
+          JS_VERSION=$(echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | select(.name == "nats-pubsub") | .version')
+          echo "js_version=$JS_VERSION" >> $GITHUB_OUTPUT
+          echo "JavaScript version: $JS_VERSION"
+
+      - name: Create GitHub Release for JavaScript
+        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
+        uses: softprops/action-gh-release@v2.4.2
+        with:
+          tag_name: javascript-v${{ steps.packages.outputs.js_version }}
+          name: JavaScript v${{ steps.packages.outputs.js_version }}
+          body: |
+            JavaScript/TypeScript package release v${{ steps.packages.outputs.js_version }}
+
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/javascript/CHANGELOG.md) for details.
+
+            ## Installation
+
+            ```bash
+            pnpm add nats-pubsub@${{ steps.packages.outputs.js_version }}
+            # or
+            npm install nats-pubsub@${{ steps.packages.outputs.js_version }}
+            # or
+            yarn add nats-pubsub@${{ steps.packages.outputs.js_version }}
+            ```
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify npm publication
+        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
+        run: |
+          echo "Waiting 10 seconds for npm registry propagation..."
+          sleep 10
+          npm view nats-pubsub@${{ steps.packages.outputs.js_version }} || {
+            echo "Warning: Package not found on npm registry yet. This might be expected if there was a publication delay."
+            exit 0
+          }
+          echo "✓ Package successfully published and available on npm"
+
+  release-ruby:
+    name: Release Ruby Package
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_call' || (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Ruby version changes
+        id: check_ruby
+        run: |
+          # Check if Ruby package version was updated in this push
+          BEFORE="${{ github.event.before || '' }}"
+          AFTER="${{ github.sha }}"
+
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${BEFORE}..${AFTER}"
+          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
+            RANGE="HEAD~1..HEAD"
+          else
+            echo "First commit detected; treating it as potentially changing all files"
+            RANGE=""
+          fi
+
+          if [ -n "$RANGE" ]; then
+            CHANGED=$(git diff --name-only "$RANGE" -- packages/ruby/lib/nats_pubsub/version.rb || true)
+          else
+            # First commit: inspect the commit contents
+            CHANGED=$(git show --name-only --pretty="" "$AFTER" -- packages/ruby/lib/nats_pubsub/version.rb || true)
+          fi
+
+          if echo "$CHANGED" | grep -q "packages/ruby/lib/nats_pubsub/version.rb"; then
+            echo "Ruby version file changed"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "No Ruby version changes detected"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Ruby
+        if: steps.check_ruby.outputs.should_release == 'true'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: packages/ruby
+          rubygems: latest
+
+      - name: Get Ruby version
+        if: steps.check_ruby.outputs.should_release == 'true'
+        id: ruby_version
+        run: |
+          cd packages/ruby
+          VERSION=$(ruby -e "require_relative 'lib/nats_pubsub/version.rb'; puts NatsPubsub::VERSION")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Ruby version: $VERSION"
+
+      - name: Check if tag exists
+        if: steps.check_ruby.outputs.should_release == 'true'
+        id: check_tag
+        run: |
+          if git rev-parse "ruby-v${{ steps.ruby_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag ruby-v${{ steps.ruby_version.outputs.version }} already exists"
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag does not exist, will create it"
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Git tag
+        if: steps.check_ruby.outputs.should_release == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git tag -a "ruby-v${{ steps.ruby_version.outputs.version }}" -m "Release ruby-v${{ steps.ruby_version.outputs.version }} [skip ci]"
+          git push origin "ruby-v${{ steps.ruby_version.outputs.version }}"
+
+      - name: Build gem
+        if: steps.check_ruby.outputs.should_release == 'true'
+        run: |
+          cd packages/ruby
+          gem build nats_pubsub.gemspec
+
+      - name: Publish to RubyGems
+        if: steps.check_ruby.outputs.should_release == 'true'
+        uses: rubygems/release-gem@v1
+        with:
+          working-directory: packages/ruby
+
+      - name: Verify RubyGems publication
+        if: steps.check_ruby.outputs.should_release == 'true'
+        run: |
+          echo "Waiting 10 seconds for RubyGems propagation..."
+          sleep 10
+          gem list -r nats_pubsub | grep "nats_pubsub (${{ steps.ruby_version.outputs.version }})" || {
+            echo "Warning: Gem not found on RubyGems yet. This might be expected if there was a publication delay."
+            exit 0
+          }
+          echo "✓ Gem successfully published and available on RubyGems"
+
+      - name: Create GitHub Release for Ruby
+        if: steps.check_ruby.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2.4.2
+        with:
+          tag_name: ruby-v${{ steps.ruby_version.outputs.version }}
+          name: Ruby v${{ steps.ruby_version.outputs.version }}
+          body: |
+            Ruby package release v${{ steps.ruby_version.outputs.version }}
+
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for details.
+
+            ## Installation
+
+            ```ruby
+            # Gemfile
+            gem 'nats_pubsub', '~> ${{ steps.ruby_version.outputs.version }}'
+            ```
+
+            Or via command line:
+            ```bash
+            gem install nats_pubsub -v ${{ steps.ruby_version.outputs.version }}
+            ```
+          files: packages/ruby/*.gem
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

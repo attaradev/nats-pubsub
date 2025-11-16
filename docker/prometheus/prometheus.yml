@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'nats-pubsub-dev'
+    environment: 'development'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'nats-surveyor'
+    static_configs:
+      - targets: ['nats-surveyor:7777']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'nats-server'
+    static_configs:
+      - targets: ['nats:8222']
+    metrics_path: /metrics
+    scrape_interval: 10s
