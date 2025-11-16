@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload audit results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: javascript-audit-results
           path: audit-results.json
@@ -134,7 +134,7 @@ jobs:
 
       - name: Upload audit results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ruby-audit-results
           path: packages/ruby/audit-results.json
