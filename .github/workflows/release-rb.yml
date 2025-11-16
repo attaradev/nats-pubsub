@@ -127,7 +127,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: detect-version
-    if: needs.detect-version.outputs.should-release == 'true'
+    if: |
+      needs.detect-version.outputs.should-release == 'true' &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
 
     steps:
       - uses: actions/checkout@v5.0.0
@@ -169,10 +171,18 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s" --no-merges -- .)
           fi
 
-          # Create changelog entry
-          CHANGELOG_ENTRY="## [Unreleased]\n\n## [$NEW_VERSION] - $TODAY\n\n### Changes\n$COMMITS\n"
-          sed -i.bak "s/## \[Unreleased\]/$CHANGELOG_ENTRY/" CHANGELOG.md
-          rm -f CHANGELOG.md.bak
+          # Create changelog entry - use printf to properly handle newlines and escape sequences
+          {
+            echo "## [Unreleased]"
+            echo ""
+            echo "## [$NEW_VERSION] - $TODAY"
+            echo ""
+            echo "### Changes"
+            echo "$COMMITS"
+            echo ""
+            tail -n +2 CHANGELOG.md
+          } > CHANGELOG.md.tmp
+          mv CHANGELOG.md.tmp CHANGELOG.md
 
       - name: Commit version bump
         run: |
