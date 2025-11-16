@@ -43,3 +43,18 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.javascript == 'true'
     uses: ./.github/workflows/test-js.yml
+
+  # Summary job that always runs and is required for branch protection
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [ruby-tests, javascript-tests]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.ruby-tests.result }}" == "failure" || "${{ needs.javascript-tests.result }}" == "failure" ]]; then
+            echo "Tests failed"
+            exit 1
+          fi
+          echo "All tests passed or were skipped"
