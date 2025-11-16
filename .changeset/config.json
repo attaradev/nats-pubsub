@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "attaradev/nats_pubsub"
+      "repo": "attaradev/nats-pubsub"
     }
   ],
   "commit": false,
