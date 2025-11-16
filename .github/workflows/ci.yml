@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   detect-changes:
@@ -70,5 +71,9 @@ jobs:
     name: Trigger Release
     needs: ci-success
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/release.yml
     secrets: inherit
