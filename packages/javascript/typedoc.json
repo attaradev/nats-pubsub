@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs",
+  "plugin": [],
+  "name": "NatsPubsub - JavaScript/TypeScript",
+  "readme": "README.md",
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "categorizeByGroup": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/attaradev/nats_pubsub",
+    "npm": "https://www.npmjs.com/package/nats-pubsub"
+  },
+  "theme": "default"
+}

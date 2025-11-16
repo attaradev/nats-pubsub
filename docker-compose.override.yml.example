@@ -1,0 +1,36 @@
+# Copy this file to docker-compose.override.yml for local development customizations
+# This file is ignored by git
+
+services:
+  # Uncomment to run Ruby development environment
+  # ruby-dev:
+  #   build:
+  #     context: ./packages/ruby
+  #     dockerfile: Dockerfile.dev
+  #   volumes:
+  #     - ./packages/ruby:/app
+  #   command: bundle exec exe/nats_pubsub -e development
+  #   depends_on:
+  #     - nats
+  #     - postgres
+  #   networks:
+  #     - nats-network
+  #   environment:
+  #     NATS_URLS: nats://nats:4222
+  #     DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nats_pubsub_dev
+
+  # Uncomment to run JavaScript development environment
+  # javascript-dev:
+  #   build:
+  #     context: ./packages/javascript
+  #     dockerfile: Dockerfile.dev
+  #   volumes:
+  #     - ./packages/javascript:/app
+  #     - /app/node_modules
+  #   command: npm run build:watch
+  #   depends_on:
+  #     - nats
+  #   networks:
+  #     - nats-network
+  #   environment:
+  #     NATS_URLS: nats://nats:4222
