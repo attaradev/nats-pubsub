@@ -1,0 +1,184 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9:00 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  audit-javascript:
+    name: Audit JavaScript Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run npm audit
+        id: audit
+        continue-on-error: true
+        run: |
+          pnpm audit --audit-level=moderate --json > audit-results.json || true
+
+          # Parse results
+          HIGH=$(jq '.metadata.vulnerabilities.high' audit-results.json || echo "0")
+          CRITICAL=$(jq '.metadata.vulnerabilities.critical' audit-results.json || echo "0")
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate' audit-results.json || echo "0")
+
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+
+          TOTAL=$((HIGH + CRITICAL + MODERATE))
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "Found $TOTAL vulnerabilities (Critical: $CRITICAL, High: $HIGH, Moderate: $MODERATE)"
+            exit 1
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: javascript-audit-results
+          path: audit-results.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const critical = '${{ steps.audit.outputs.critical }}';
+            const high = '${{ steps.audit.outputs.high }}';
+            const moderate = '${{ steps.audit.outputs.moderate }}';
+
+            const body = `## 🔒 Security Audit Results (JavaScript)
+
+            ⚠️ Vulnerabilities detected in JavaScript dependencies:
+
+            - **Critical**: ${critical}
+            - **High**: ${high}
+            - **Moderate**: ${moderate}
+
+            Please review and address these vulnerabilities before merging.
+
+            Run \`pnpm audit\` locally for more details.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  audit-ruby:
+    name: Audit Ruby Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: packages/ruby
+
+      - name: Install bundler-audit
+        run: gem install bundler-audit
+
+      - name: Update vulnerability database
+        run: bundle audit update
+
+      - name: Run bundle audit
+        id: audit
+        continue-on-error: true
+        working-directory: packages/ruby
+        run: |
+          bundle audit check --format json > audit-results.json || true
+
+          # Check if vulnerabilities found
+          if grep -q '"vulnerabilities":' audit-results.json; then
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ruby-audit-results
+          path: packages/ruby/audit-results.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = `## 🔒 Security Audit Results (Ruby)
+
+            ⚠️ Vulnerabilities detected in Ruby dependencies.
+
+            Please review and address these vulnerabilities before merging.
+
+            Run \`bundle audit check\` locally for more details.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  summary:
+    name: Audit Summary
+    runs-on: ubuntu-latest
+    needs: [audit-javascript, audit-ruby]
+    if: always()
+
+    steps:
+      - name: Check audit status
+        run: |
+          JS_STATUS="${{ needs.audit-javascript.result }}"
+          RUBY_STATUS="${{ needs.audit-ruby.result }}"
+
+          echo "JavaScript audit: $JS_STATUS"
+          echo "Ruby audit: $RUBY_STATUS"
+
+          if [ "$JS_STATUS" = "failure" ] || [ "$RUBY_STATUS" = "failure" ]; then
+            echo "❌ Security vulnerabilities found"
+            exit 1
+          else
+            echo "✅ No security vulnerabilities found"
+          fi

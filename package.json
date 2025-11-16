@@ -1,0 +1,73 @@
+{
+  "name": "nats-pubsub-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Declarative PubSub messaging for NATS JetStream - Monorepo",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules pnpm-lock.yaml",
+    "install:js": "pnpm install --filter nats-pubsub",
+    "install:ruby": "cd packages/ruby && bundle install",
+    "changeset": "changeset",
+    "changeset:add": "changeset add",
+    "changeset:status": "changeset status",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
+    "release:status": "./scripts/release-status.sh",
+    "release:preview": "./scripts/release-preview.sh",
+    "release:check": "./scripts/release-check.sh",
+    "release:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "prepare": "husky",
+    "commit": "git-cz"
+  },
+  "lint-staged": {
+    "packages/javascript/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "cd packages/javascript && eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.js": [
+      "prettier --write"
+    ],
+    "packages/ruby/**/*.rb": [
+      "cd packages/ruby && bundle exec rubocop -A"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/attaradev/nats-pubsub"
+  },
+  "keywords": [
+    "nats",
+    "jetstream",
+    "pubsub",
+    "messaging",
+    "monorepo"
+  ],
+  "author": "Mike Attara <mpyebattara@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/attaradev/nats_pubsub/issues"
+  },
+  "homepage": "https://github.com/attaradev/nats_pubsub#readme",
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.7",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.3.2",
+    "tsup": "^8.5.1"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.22.0"
+}

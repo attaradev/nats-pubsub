@@ -1,0 +1,24 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🧪 Running tests before push..."
+
+# Run JavaScript tests
+echo "📦 Running JavaScript tests..."
+cd packages/javascript && npm test
+
+if [ $? -ne 0 ]; then
+  echo "❌ JavaScript tests failed. Please fix the tests before pushing."
+  exit 1
+fi
+
+# Run Ruby tests
+echo "💎 Running Ruby tests..."
+cd ../../packages/ruby && bundle exec rspec
+
+if [ $? -ne 0 ]; then
+  echo "❌ Ruby tests failed. Please fix the tests before pushing."
+  exit 1
+fi
+
+echo "✅ All tests passed! Proceeding with push..."
