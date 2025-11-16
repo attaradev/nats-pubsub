@@ -1,0 +1,105 @@
+# frozen_string_literal: true
+
+# NatsPubsub configuration
+NatsPubsub.configure do |config|
+  # ===== Connection Settings =====
+
+  # NATS server URLs (comma-separated for multiple servers)
+  config.nats_urls = ENV.fetch('NATS_URLS', 'nats://localhost:4222')
+
+  # Environment prefix for subjects (e.g., development, staging, production)
+  config.env = ENV.fetch('NATS_ENV', '<%= rails_env %>')
+
+  # Application name used in subject naming
+  config.app_name = ENV.fetch('APP_NAME', '<%= app_name %>')
+
+  # Destination app for cross-app data sync (optional)
+  config.destination_app = ENV.fetch('DESTINATION_APP', nil)
+
+  # ===== Connection Pool Settings =====
+
+  # Number of connections in the pool
+  config.connection_pool_size = ENV.fetch('NATS_POOL_SIZE', 5).to_i
+
+  # Timeout for acquiring a connection from the pool (seconds)
+  config.connection_pool_timeout = ENV.fetch('NATS_POOL_TIMEOUT', 5).to_i
+
+  # ===== Consumer Tuning =====
+
+  # Maximum number of delivery attempts before giving up
+  config.max_deliver = <%= max_deliver_value %>
+
+  # How long to wait for acknowledgment before redelivery
+  config.ack_wait = '<%= ack_wait_value %>'
+
+  # Backoff delays between retry attempts
+  config.backoff = %w[1s 5s 15s 30s 60s]
+
+  # Number of concurrent message processors
+  config.concurrency = <%= concurrency_value %>
+
+  # ===== Reliability Patterns =====
+
+  # Outbox Pattern: Store events in database before publishing
+  # Ensures at-least-once delivery and prevents event loss
+  config.use_outbox = <%= use_outbox? %>
+
+  # Inbox Pattern: Store received events for idempotency
+  # Prevents duplicate processing of the same event
+  config.use_inbox = <%= use_inbox? %>
+
+  # Dead Letter Queue: Send failed messages to DLQ after max attempts
+  config.use_dlq = true
+  config.dlq_max_attempts = 5
+  config.dlq_stream_suffix = '-dlq'
+
+  # ===== Model Configuration =====
+
+  # ActiveRecord models for outbox and inbox tables
+  # Override these if you use custom model names
+  config.outbox_model = 'NatsPubsub::OutboxEvent'
+  config.inbox_model = 'NatsPubsub::InboxEvent'
+
+  # ===== Logging =====
+
+  # Logger instance (defaults to Rails.logger)
+  config.logger = Rails.logger
+
+  # ===== Middleware Configuration =====
+
+  # Configure server-side middleware for message processing
+  # Middleware runs in the order they are added
+  #
+  # Example:
+  # config.server_middleware do |chain|
+  #   chain.add MyCustomMiddleware, arg1: 'value1'
+  #   chain.add AnotherMiddleware
+  # end
+end
+
+# ===== Important Notes =====
+#
+# 1. Outbox Pattern:
+#    - Requires running migrations: rails generate nats_pubsub:migrations
+#    - Ensures reliable event publishing even if NATS is down
+#    - Background worker publishes events from the outbox table
+#
+# 2. Inbox Pattern:
+#    - Requires running migrations: rails generate nats_pubsub:migrations
+#    - Prevents duplicate event processing (idempotency)
+#    - Useful for critical business operations
+#
+# 3. Environment Variables:
+#    - Use .env files or system environment variables
+#    - Generate example: rails generate nats_pubsub:config --env-file
+#
+# 4. Production Recommendations:
+#    - Enable outbox pattern for critical events
+#    - Enable inbox pattern for operations that must be idempotent
+#    - Use multiple NATS servers for high availability
+#    - Tune concurrency based on your workload
+#    - Monitor DLQ for persistent failures
+#
+# 5. Testing:
+#    - Use NatsPubsub::Testing.fake! in tests
+#    - See: packages/ruby/TESTING_GUIDE.md

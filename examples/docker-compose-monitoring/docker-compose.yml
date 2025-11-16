@@ -1,0 +1,185 @@
+version: "3.8"
+
+services:
+  # NATS Server with JetStream
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-server
+    command: >
+      -js
+      -m 8222
+      -D
+      --store_dir /data
+      --max_payload 8MB
+      --max_pending 256MB
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+      - "6222:6222" # Cluster routing
+    volumes:
+      - nats-data:/data
+    networks:
+      - nats-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # PostgreSQL (for Ruby Inbox/Outbox)
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: nats_pubsub_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - nats-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - nats-network
+    depends_on:
+      - nats
+    restart: unless-stopped
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - nats-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # NATS Exporter - Exports NATS metrics to Prometheus
+  nats-exporter:
+    image: natsio/prometheus-nats-exporter:latest
+    container_name: nats-exporter
+    command:
+      - "-varz"
+      - "-connz"
+      - "-routez"
+      - "-subz"
+      - "-jsz=all"
+      - "http://nats:8222"
+    ports:
+      - "7777:7777"
+    networks:
+      - nats-network
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Example JavaScript Publisher
+  js-publisher:
+    build:
+      context: ./app-js
+      dockerfile: Dockerfile
+    container_name: js-publisher
+    environment:
+      - NODE_ENV=development
+      - NATS_URLS=nats://nats:4222
+      - APP_NAME=js-publisher
+      - ENV=development
+      - PORT=3001
+    ports:
+      - "3001:3001"
+    networks:
+      - nats-network
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    command: npm start
+
+  # Example JavaScript Subscriber
+  js-subscriber:
+    build:
+      context: ./app-js
+      dockerfile: Dockerfile
+    container_name: js-subscriber
+    environment:
+      - NODE_ENV=development
+      - NATS_URLS=nats://nats:4222
+      - APP_NAME=js-subscriber
+      - ENV=development
+      - CONCURRENCY=10
+    networks:
+      - nats-network
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    command: npm run subscriber
+
+  # Example Ruby Publisher (optional)
+  # ruby-publisher:
+  #   build:
+  #     context: ./app-ruby
+  #     dockerfile: Dockerfile
+  #   container_name: ruby-publisher
+  #   environment:
+  #     - RAILS_ENV=development
+  #     - NATS_URLS=nats://nats:4222
+  #     - APP_NAME=ruby-publisher
+  #     - ENV=development
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/nats_pubsub_dev
+  #   ports:
+  #     - "3002:3002"
+  #   networks:
+  #     - nats-network
+  #   depends_on:
+  #     - nats
+  #     - postgres
+  #   restart: unless-stopped
+
+networks:
+  nats-network:
+    driver: bridge
+
+volumes:
+  nats-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

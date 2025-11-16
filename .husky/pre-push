@@ -1,0 +1,31 @@
+# Skip tests in CI environments
+if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
+  echo "⏭️  Skipping pre-push tests in CI environment"
+  exit 0
+fi
+
+echo "🧪 Running tests before push..."
+
+# Run JavaScript tests
+echo "📦 Running JavaScript tests..."
+cd packages/javascript && npm test
+
+if [ $? -ne 0 ]; then
+  echo "❌ JavaScript tests failed. Please fix the tests before pushing."
+  exit 1
+fi
+
+# Run Ruby tests (skip if bundler not available)
+echo "💎 Running Ruby tests..."
+if command -v bundle >/dev/null 2>&1; then
+  cd ../../packages/ruby && bundle exec rspec
+
+  if [ $? -ne 0 ]; then
+    echo "❌ Ruby tests failed. Please fix the tests before pushing."
+    exit 1
+  fi
+else
+  echo "⚠️  Bundler not found, skipping Ruby tests"
+fi
+
+echo "✅ All tests passed! Proceeding with push..."

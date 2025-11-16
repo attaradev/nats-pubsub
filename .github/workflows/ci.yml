@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      javascript: ${{ steps.filter.outputs.javascript }}
+      ruby: ${{ steps.filter.outputs.ruby }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine change sets
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            javascript:
+              - 'packages/javascript/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-node-pnpm/**'
+            ruby:
+              - 'packages/ruby/**'
+              - '.github/actions/setup-ruby/**'
+              - 'Gemfile'
+              - 'Gemfile.lock'
+              - 'Rakefile'
+
+  javascript:
+    name: JavaScript tests & audit
+    needs: changes
+    if: needs.changes.outputs.javascript == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          frozen-lockfile: "true"
+
+      - name: Run tests
+        run: pnpm --filter nats-pubsub test
+
+      - name: Audit npm dependencies
+        run: pnpm audit
+
+  ruby:
+    name: Ruby tests & audit
+    needs: changes
+    if: needs.changes.outputs.ruby == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ruby
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
+        with:
+          ruby-version: "3.2"
+          working-directory: packages/ruby
+
+      - name: Run specs
+        run: bundle exec rspec
+
+      - name: Audit Ruby dependencies
+        run: bundle exec bundle-audit check --update

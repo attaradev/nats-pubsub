@@ -1,0 +1,7 @@
+# Validate versions if version files changed (unless SKIP_VERSION_CHECK is set)
+if [ -z "${SKIP_VERSION_CHECK:-}" ]; then
+  ./scripts/validate-versions.sh || exit 1
+fi
+
+# Run lint-staged
+npx lint-staged

@@ -1,0 +1,62 @@
+<h2>Outbox Events</h2>
+
+<div class="filters">
+  <form method="get" action="/outbox" style="display: flex; gap: 10px;">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All Statuses</option>
+      <option value="pending" <%= 'selected' if @status_filter == 'pending' %>>Pending</option>
+      <option value="publishing" <%= 'selected' if @status_filter == 'publishing' %>>Publishing</option>
+      <option value="sent" <%= 'selected' if @status_filter == 'sent' %>>Sent</option>
+      <option value="failed" <%= 'selected' if @status_filter == 'failed' %>>Failed</option>
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Event ID</th>
+        <th>Subject</th>
+        <th>Status</th>
+        <th>Attempts</th>
+        <th>Created At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if @events.any? %>
+        <% @events.each do |event| %>
+          <tr>
+            <td><a href="/outbox/<%= event.id %>"><%= truncate(event.event_id, 30) %></a></td>
+            <td><%= truncate(event.subject, 40) %></td>
+            <td><span class="badge <%= status_badge_class(event.status) %>"><%= event.status %></span></td>
+            <td><%= event.respond_to?(:attempts) ? event.attempts : 'N/A' %></td>
+            <td><%= format_time(event.created_at) %></td>
+            <td>
+              <a href="/outbox/<%= event.id %>" class="btn btn-secondary" style="padding: 4px 8px;">View</a>
+            </td>
+          </tr>
+        <% end %>
+      <% else %>
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 40px;">No events found</td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% if @total_pages > 1 %>
+    <div class="pagination">
+      <% if @page > 1 %>
+        <a href="?page=<%= @page - 1 %><%= "&status=#{@status_filter}" if @status_filter %>">« Previous</a>
+      <% end %>
+
+      <span>Page <%= @page %> of <%= @total_pages %></span>
+
+      <% if @page < @total_pages %>
+        <a href="?page=<%= @page + 1 %><%= "&status=#{@status_filter}" if @status_filter %>">Next »</a>
+      <% end %>
+    </div>
+  <% end %>
+</div>

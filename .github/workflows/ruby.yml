@@ -1,0 +1,90 @@
+name: Ruby Release
+
+on:
+  push:
+    tags:
+      - "ruby-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: ruby-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Ruby gem
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ruby
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          EXPECTED_PREFIX="ruby-v"
+
+          if [[ "$TAG" != ${EXPECTED_PREFIX}* ]]; then
+            echo "::error::Tag $TAG does not start with ${EXPECTED_PREFIX}"
+            exit 1
+          fi
+
+          TAG_VERSION="${TAG#${EXPECTED_PREFIX}}"
+          FILE_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" lib/nats_pubsub/version.rb)
+
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match lib/nats_pubsub/version.rb ($FILE_VERSION)"
+            exit 1
+          fi
+
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
+        with:
+          ruby-version: "3.2"
+          working-directory: packages/ruby
+
+      - name: Configure RubyGems credentials with OIDC
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Build and publish gem
+        run: |
+          rm -f nats_pubsub-*.gem
+          gem build nats_pubsub.gemspec
+          gem push nats_pubsub-*.gem
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUBY_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "ruby-v${RUBY_VERSION}" \
+            --verify-tag \
+            --title "Ruby v${RUBY_VERSION}" \
+            --notes "Ruby package release v${RUBY_VERSION}
+
+          ## Installation
+
+          \`\`\`ruby
+          # Gemfile
+          gem 'nats_pubsub', '~> ${RUBY_VERSION}'
+          \`\`\`
+
+          Or via command line:
+          \`\`\`bash
+          gem install nats_pubsub -v ${RUBY_VERSION}
+          \`\`\`
+
+          See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for detailed changes." \
+            nats_pubsub-*.gem

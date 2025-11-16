@@ -1,0 +1,90 @@
+name: Bug Report
+description: File a bug report to help us improve
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: package
+    attributes:
+      label: Package
+      description: Which package is affected?
+      options:
+        - JavaScript/TypeScript
+        - Ruby
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide minimal steps to reproduce the issue
+      placeholder: |
+        1. Configure with...
+        2. Create subscriber...
+        3. Publish message...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Code Sample
+      description: Please provide a minimal code sample
+      render: typescript
+      placeholder: |
+        import NatsPubsub from 'nats-pubsub';
+        // Your code here
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of nats-pubsub are you running?
+      placeholder: v0.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js Version (if applicable)
+      placeholder: v20.0.0
+
+  - type: input
+    id: ruby-version
+    attributes:
+      label: Ruby Version (if applicable)
+      placeholder: v3.2.0
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
