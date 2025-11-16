@@ -1,4 +1,4 @@
-import MiddlewareChain from '../../middleware/chain';
+import { MiddlewareChain } from '../../middleware/chain';
 import { Middleware, EventMetadata } from '../../types';
 
 describe('MiddlewareChain', () => {
@@ -106,7 +106,7 @@ describe('MiddlewareChain', () => {
       chain.add(middleware);
 
       const handler = jest.fn();
-      const event: any = { id: '123' };
+      const event: Record<string, unknown> = { id: '123' };
       const metadata: EventMetadata = {
         event_id: '123',
         subject: 'test.subject',
@@ -218,7 +218,7 @@ describe('MiddlewareChain', () => {
       chain.add(errorThrowingMiddleware);
 
       const handler = jest.fn();
-      const event: any = { id: '123' };
+      const event: Record<string, unknown> = { id: '123' };
       const metadata: EventMetadata = {
         event_id: '123',
         subject: 'test.subject',

@@ -2,10 +2,13 @@ import {
   AckPolicy,
   ConsumerConfig,
   DeliverPolicy,
+  DiscardPolicy,
   JsMsg,
   ReplayPolicy,
+  RetentionPolicy,
+  StorageType,
 } from 'nats';
-import { EventMetadata, Subscriber } from '../types';
+import { EventMetadata, Middleware, Subscriber } from '../types';
 import connection from '../core/connection';
 import config from '../core/config';
 import { toNanos } from '../core/duration';
@@ -31,7 +34,7 @@ export class Consumer {
   /**
    * Add middleware to the processing chain
    */
-  use(middleware: any): void {
+  use(middleware: Middleware): void {
     this.middlewareChain.add(middleware);
   }
 
@@ -86,8 +89,9 @@ export class Consumer {
       // Try to get existing stream
       await jsm.streams.info(streamName);
       logger.debug('Stream already exists', { stream: streamName });
-    } catch (error: any) {
-      if (error.code === '404') {
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === '404') {
         // Stream doesn't exist, create it
         logger.info('Creating stream...', { stream: streamName });
 
@@ -99,11 +103,11 @@ export class Consumer {
         await jsm.streams.add({
           name: streamName,
           subjects,
-          retention: 'limits',
+          retention: RetentionPolicy.Limits,
           max_age: toNanos(7 * 24 * 60 * 60 * 1000), // 7 days in nanoseconds
-          storage: 'file',
+          storage: StorageType.File,
           num_replicas: 1,
-          discard: 'old',
+          discard: DiscardPolicy.Old,
         });
 
         logger.info('Stream created successfully', { stream: streamName });
@@ -187,7 +191,7 @@ export class Consumer {
         action: envelope.event_type,
         stream: msg.info?.stream,
         stream_seq: msg.seq,
-        deliveries: msg.info?.delivered,
+        deliveries: msg.info?.deliveryCount,
         trace_id: envelope.trace_id,
       };
 
@@ -218,10 +222,10 @@ export class Consumer {
       });
 
       // Check if we've exceeded max_deliver
-      if (msg.info && msg.info.delivered >= (config.get().maxDeliver || 5)) {
+      if (msg.info && msg.info.deliveryCount >= (config.get().maxDeliver || 5)) {
         logger.warn('Message exceeded max_deliver, moving to DLQ', {
           subject: msg.subject,
-          deliveries: msg.info.delivered,
+          deliveries: msg.info.deliveryCount,
         });
         msg.ack(); // Ack to remove from original subject
         // In production, you'd publish to DLQ here

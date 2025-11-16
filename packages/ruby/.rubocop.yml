@@ -1,4 +1,4 @@
-# .rubocop.yml — JetstreamBridge gem
+# .rubocop.yml — NatsPubsub gem
 # Focused for a Ruby gem: Packaging, Bundler, Rake, Performance, RSpec.
 
 plugins:
@@ -7,7 +7,7 @@ plugins:
 
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 2.7   # match gemspec minimum to avoid false positives
+  TargetRubyVersion: 3.2   # match gemspec minimum to avoid false positives
   Exclude:
     - 'bin/*'
     - 'pkg/**/*'
@@ -43,19 +43,16 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - 'Rakefile'
     - 'tasks/**/*.rake'
-    - 'jetstream_bridge.gemspec'
+    - 'nats_pubsub.gemspec'
+    - 'lib/nats_pubsub/web.rb'
 
 Metrics/MethodLength:
   Max: 25
   Exclude:
-    - 'lib/jetstream_bridge/**/publisher*.rb'
-    - 'lib/jetstream_bridge/**/consumer*.rb'
+    - 'lib/nats_pubsub/consumer_pool.rb'
 
 Metrics/AbcSize:
   Max: 25
-  Exclude:
-    - 'lib/jetstream_bridge/**/publisher*.rb'
-    - 'lib/jetstream_bridge/**/consumer*.rb'
 
 Metrics/CyclomaticComplexity:
   Max: 10

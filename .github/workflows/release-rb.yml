@@ -1,0 +1,207 @@
+name: Ruby Release
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (leave empty for auto-bump)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  detect-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should-release }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Check for conventional commits
+        id: check
+        run: |
+          # Skip check if manually triggered with a version
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "Manual release triggered with version: ${{ github.event.inputs.version }}"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get last tag for this specific package
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "")
+
+          # Check if there are changes in the Ruby package since last tag
+          if [ -z "$LAST_TAG" ]; then
+            # No tag exists, check if there are any commits for this package
+            COMMITS=$(git log --pretty=format:"%s" --no-merges -- packages/ruby/)
+            if [ -z "$COMMITS" ]; then
+              echo "No commits found for Ruby package"
+              echo "should-release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          else
+            # Tag exists, check for changes since that tag
+            CHANGES=$(git diff --name-only $LAST_TAG..HEAD -- packages/ruby/)
+            if [ -z "$CHANGES" ]; then
+              echo "No changes in Ruby package since $LAST_TAG"
+              echo "should-release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges -- packages/ruby/)
+          fi
+
+          # Check if there are any feat/fix/breaking commits
+          if echo "$COMMITS" | grep -qE "^(feat|fix|perf|BREAKING CHANGE)"; then
+            echo "Found release-worthy commits for Ruby package"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Only chore/docs commits found, skipping release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Ruby
+        if: steps.check.outputs.should-release == 'true'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: false
+
+      - name: Determine version bump
+        id: version
+        if: steps.check.outputs.should-release == 'true'
+        run: |
+          # Use manual version if provided
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using manual version: $VERSION"
+            exit 0
+          fi
+
+          # Get last tag or use version.rb as fallback
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            # No tags exist, read from version.rb
+            VERSION_FILE="packages/ruby/lib/nats_pubsub/version.rb"
+            PACKAGE_VERSION=$(ruby -e "require_relative '$VERSION_FILE'; puts NatsPubsub::VERSION")
+            echo "No previous tags found, using version.rb version: $PACKAGE_VERSION"
+            echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+            echo "New version will be: $PACKAGE_VERSION"
+          else
+            # Tags exist, calculate next version based on commits
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges -- packages/ruby/)
+
+            # Parse current version
+            CURRENT_VERSION=${LAST_TAG#ruby-v}
+            IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${VERSION_PARTS[0]:-0}
+            MINOR=${VERSION_PARTS[1]:-0}
+            PATCH=${VERSION_PARTS[2]:-0}
+
+            # Determine bump type
+            if echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif echo "$COMMITS" | grep -q "^feat"; then
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            else
+              PATCH=$((PATCH + 1))
+            fi
+
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "New version will be: $NEW_VERSION"
+          fi
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: detect-version
+    if: needs.detect-version.outputs.should-release == 'true'
+
+    steps:
+      - uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: packages/ruby
+          rubygems: latest
+
+      - name: Update version
+        run: |
+          cd packages/ruby
+          NEW_VERSION="${{ needs.detect-version.outputs.version }}"
+          VERSION_FILE="lib/nats_pubsub/version.rb"
+          CURRENT_VERSION=$(ruby -e "require_relative '$VERSION_FILE'; puts NatsPubsub::VERSION")
+
+          # Only update version.rb if version changed
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+            echo "Updating version.rb from $CURRENT_VERSION to $NEW_VERSION"
+            sed -i.bak "s/VERSION = '[^']*'/VERSION = '$NEW_VERSION'/" $VERSION_FILE
+            rm -f ${VERSION_FILE}.bak
+          else
+            echo "Version $NEW_VERSION already matches version.rb, skipping version update"
+          fi
+
+          # Update CHANGELOG
+          TODAY=$(date +%Y-%m-%d)
+
+          # Get commits since last tag for changelog
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges -- .)
+          else
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges -- .)
+          fi
+
+          # Create changelog entry
+          CHANGELOG_ENTRY="## [Unreleased]\n\n## [$NEW_VERSION] - $TODAY\n\n### Changes\n$COMMITS\n"
+          sed -i.bak "s/## \[Unreleased\]/$CHANGELOG_ENTRY/" CHANGELOG.md
+          rm -f CHANGELOG.md.bak
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add packages/ruby/lib/nats_pubsub/version.rb packages/ruby/CHANGELOG.md
+          git commit -m "chore(ruby): release v${{ needs.detect-version.outputs.version }}" || echo "No changes to commit"
+          git tag "ruby-v${{ needs.detect-version.outputs.version }}"
+          git push origin main --tags
+
+      - name: Build gem
+        run: |
+          cd packages/ruby
+          gem build nats_pubsub.gemspec
+
+      - name: Publish to RubyGems using Trusted Publishing
+        run: |
+          cd packages/ruby
+          gem push *.gem
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.3.3
+        with:
+          tag_name: ruby-v${{ needs.detect-version.outputs.version }}
+          name: Ruby v${{ needs.detect-version.outputs.version }}
+          body: |
+            Ruby package release v${{ needs.detect-version.outputs.version }}
+
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for details.
+          files: packages/ruby/*.gem
+          draft: false
+          prerelease: false

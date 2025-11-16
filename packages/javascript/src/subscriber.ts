@@ -4,7 +4,8 @@ import { EventMetadata, Subscriber, SubscriberOptions } from './types';
  * Decorator for creating subscriber classes
  */
 export function subscriber(subjects: string | string[], options?: SubscriberOptions) {
-  return function <T extends { new (...args: any[]): {} }>(constructor: T) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function <T extends new (...args: any[]) => object>(constructor: T) {
     const subjectArray = Array.isArray(subjects) ? subjects : [subjects];
 
     return class extends constructor implements Subscriber {

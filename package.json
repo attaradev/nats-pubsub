@@ -3,17 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "Declarative PubSub messaging for NATS JetStream - Monorepo",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "lint": "npm run lint --workspaces",
-    "format": "npm run format --workspaces",
-    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
-    "install:js": "cd packages/nats-pubsub-js && npm install",
-    "install:ruby": "cd packages/nats-pubsub-ruby && bundle install"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules pnpm-lock.yaml",
+    "install:js": "pnpm install --filter nats-pubsub",
+    "install:ruby": "cd packages/ruby && bundle install"
   },
   "repository": {
     "type": "git",
@@ -33,10 +30,12 @@
   },
   "homepage": "https://github.com/attaradev/nats_pubsub#readme",
   "devDependencies": {
-    "prettier": "^3.3.2"
+    "prettier": "^3.3.2",
+    "tsup": "^8.5.1"
   },
   "engines": {
     "node": ">=24.0.0",
-    "npm": ">=10.0.0"
-  }
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.22.0"
 }

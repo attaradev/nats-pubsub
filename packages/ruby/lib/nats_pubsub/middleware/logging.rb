@@ -6,7 +6,7 @@ module NatsPubsub
   module Middleware
     # Middleware that logs message processing start and completion
     class Logging
-      def call(subscriber, payload, metadata)
+      def call(subscriber, _payload, metadata)
         start = Time.now
 
         log_start(subscriber, metadata)
@@ -30,14 +30,14 @@ module NatsPubsub
         )
       end
 
-      def log_complete(subscriber, metadata, elapsed)
+      def log_complete(subscriber, _metadata, elapsed)
         NatsPubsub::Logging.info(
           "Completed #{subscriber.class.name} in #{elapsed}ms",
           tag: 'NatsPubsub::Middleware::Logging'
         )
       end
 
-      def log_error(subscriber, metadata, elapsed, error)
+      def log_error(subscriber, _metadata, elapsed, error)
         NatsPubsub::Logging.error(
           "Failed #{subscriber.class.name} after #{elapsed}ms: #{error.class} #{error.message}",
           tag: 'NatsPubsub::Middleware::Logging'

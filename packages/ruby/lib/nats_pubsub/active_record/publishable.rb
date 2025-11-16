@@ -43,6 +43,7 @@ module NatsPubsub
 
       def publish_updated_event
         return unless saved_changes?
+
         publish_event('updated', changes: previous_changes.keys)
       end
 
@@ -57,7 +58,7 @@ module NatsPubsub
         payload = publishable_attributes.merge(extra)
 
         NatsPubsub.publish(domain, resource, action, **payload)
-      rescue => e
+      rescue StandardError => e
         # Don't fail the transaction if publishing fails
         logger.error("Failed to publish #{resource}.#{action}: #{e.message}")
       end

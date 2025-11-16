@@ -2,17 +2,16 @@
 
 module NatsPubsub
   class Config
-    attr_accessor :nats_urls, :env, :app_name,
+    attr_accessor :nats_urls, :env, :app_name, :destination_app,
                   :max_deliver, :ack_wait, :backoff,
                   :use_outbox, :use_inbox, :inbox_model, :outbox_model,
                   :use_dlq, :logger, :concurrency
-
-    attr_reader :server_middleware
 
     def initialize
       @nats_urls = ENV['NATS_URLS'] || ENV['NATS_URL'] || 'nats://localhost:4222'
       @env       = ENV['NATS_ENV']  || 'development'
       @app_name  = ENV['APP_NAME']  || 'app'
+      @destination_app = ENV.fetch('DESTINATION_APP', nil)
 
       @max_deliver = 5
       @ack_wait    = '30s'

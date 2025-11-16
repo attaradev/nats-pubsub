@@ -6,7 +6,7 @@ module NatsPubsub
   module Middleware
     # Middleware that logs retry attempts
     class RetryLogger
-      def call(subscriber, payload, metadata)
+      def call(subscriber, _payload, metadata)
         if metadata[:deliveries] && metadata[:deliveries] > 1
           max_deliver = NatsPubsub.config.max_deliver
 

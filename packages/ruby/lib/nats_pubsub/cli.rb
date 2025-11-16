@@ -30,7 +30,7 @@ module NatsPubsub
       elsif File.exist?('config/environment.rb')
         require File.expand_path('config/environment.rb')
       else
-        raise "Cannot find application. Use -r to specify file to require."
+        raise 'Cannot find application. Use -r to specify file to require.'
       end
 
       Logging.info(
@@ -43,13 +43,13 @@ module NatsPubsub
       SubscriberRegistry.instance.discover_subscribers!
 
       subscribers = SubscriberRegistry.instance.all_subscribers
-      if subscribers.empty?
-        Logging.warn(
-          "No subscribers found in app/subscribers/",
-          tag: 'NatsPubsub::CLI'
-        )
-        exit(1)
-      end
+      return unless subscribers.empty?
+
+      Logging.warn(
+        'No subscribers found in app/subscribers/',
+        tag: 'NatsPubsub::CLI'
+      )
+      exit(1)
     end
 
     def start_pool
@@ -77,7 +77,7 @@ module NatsPubsub
       end
 
       trap('USR1') do
-        Logging.info("Thread dump:", tag: 'NatsPubsub::CLI')
+        Logging.info('Thread dump:', tag: 'NatsPubsub::CLI')
         Thread.list.each do |thread|
           Logging.info(
             "#{thread.name || thread.object_id}: #{thread.status}",
@@ -94,12 +94,12 @@ module NatsPubsub
       sleep 0.5 while @running
 
       Logging.info(
-        "Waiting for in-flight messages to complete...",
+        'Waiting for in-flight messages to complete...',
         tag: 'NatsPubsub::CLI'
       )
       sleep 2
 
-      Logging.info("Shutdown complete", tag: 'NatsPubsub::CLI')
+      Logging.info('Shutdown complete', tag: 'NatsPubsub::CLI')
     end
   end
 end

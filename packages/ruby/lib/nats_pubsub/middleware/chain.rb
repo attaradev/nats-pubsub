@@ -50,9 +50,9 @@ module NatsPubsub
       # @param payload [Hash] Event payload
       # @param metadata [Hash] Event metadata
       # @yield Block to execute after all middleware
-      def invoke(subscriber, payload, metadata)
+      def invoke(subscriber, payload, metadata, &)
         chain = build_chain
-        traverse(chain, subscriber, payload, metadata) { yield }
+        traverse(chain, subscriber, payload, metadata, &)
       end
 
       private

@@ -1,5 +1,5 @@
-import Connection from '../core/connection';
-import Config from '../core/config';
+import connection from '../core/connection';
+import config from '../core/config';
 
 export interface HealthStatus {
   healthy: boolean;
@@ -18,12 +18,12 @@ export interface HealthStatus {
 }
 
 export class HealthCheck {
-  private connection: Connection;
-  private config: Config;
+  private connection: typeof connection;
+  private config: typeof config;
 
   constructor() {
-    this.connection = Connection.getInstance();
-    this.config = Config.getInstance();
+    this.connection = connection;
+    this.config = config;
   }
 
   async check(): Promise<HealthStatus> {

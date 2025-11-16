@@ -2,6 +2,7 @@ import { EventEnvelope, PublishOptions } from '../types';
 import connection from '../core/connection';
 import config from '../core/config';
 import { randomUUID } from 'crypto';
+import { headers } from 'nats';
 
 export class Publisher {
   /**
@@ -47,16 +48,16 @@ export class Publisher {
         resource_type: resource,
       });
 
-      const headers = new Map<string, string[]>();
-      headers.set('Nats-Msg-Id', [eventId]); // Idempotent publish
+      const hdrs = headers();
+      hdrs.set('Nats-Msg-Id', eventId); // Idempotent publish
 
       if (options.trace_id) {
-        headers.set('trace_id', [options.trace_id]);
+        hdrs.set('trace_id', options.trace_id);
       }
 
       await js.publish(subject, JSON.stringify(envelope), {
         msgID: eventId,
-        headers,
+        headers: hdrs,
       });
 
       logger.info('Event published successfully', {

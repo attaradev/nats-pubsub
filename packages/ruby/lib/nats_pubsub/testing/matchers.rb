@@ -6,15 +6,15 @@ if defined?(RSpec)
     match do |_actual|
       NatsPubsub::Testing.published_events.any? do |event|
         event[:domain] == domain &&
-        event[:resource] == resource &&
-        event[:action] == action
+          event[:resource] == resource &&
+          event[:action] == action
       end
     end
 
     failure_message do
       published = NatsPubsub::Testing.published_events
-        .map { |e| "#{e[:domain]}.#{e[:resource]}.#{e[:action]}" }
-        .join(', ')
+                                     .map { |e| "#{e[:domain]}.#{e[:resource]}.#{e[:action]}" }
+                                     .join(', ')
 
       if published.empty?
         "expected to publish #{domain}.#{resource}.#{action}, but no events were published"
@@ -48,10 +48,10 @@ if defined?(RSpec)
 
       if matching_events.empty?
         "expected to publish #{domain}.#{resource}.#{action} with payload #{expected_payload.inspect}, " \
-        "but no matching events were published"
+          "but no matching events were published"
       else
         "expected to publish #{domain}.#{resource}.#{action} with payload #{expected_payload.inspect}, " \
-        "but got: #{matching_events.map { |e| e[:payload] }.inspect}"
+          "but got: #{matching_events.map { |e| e[:payload] }.inspect}"
       end
     end
 

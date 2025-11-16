@@ -1,9 +1,16 @@
 import { LoggingMiddleware } from '../../middleware/logging';
 import { EventMetadata } from '../../types';
 
+interface MockLogger {
+  info: jest.Mock;
+  error: jest.Mock;
+  warn: jest.Mock;
+  debug: jest.Mock;
+}
+
 describe('LoggingMiddleware', () => {
   let middleware: LoggingMiddleware;
-  let mockLogger: any;
+  let mockLogger: MockLogger;
 
   beforeEach(() => {
     mockLogger = {
@@ -15,7 +22,9 @@ describe('LoggingMiddleware', () => {
 
     middleware = new LoggingMiddleware();
     // Mock the config logger
-    jest.spyOn(require('../../core/config').default, 'logger', 'get').mockReturnValue(mockLogger);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const config = require('../../core/config').default;
+    jest.spyOn(config, 'logger', 'get').mockReturnValue(mockLogger);
   });
 
   afterEach(() => {

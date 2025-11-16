@@ -1,6 +1,6 @@
 import { BaseSubscriber } from '../subscriber';
 import { EventMetadata } from '../types';
-import Config from '../core/config';
+import config from '../core/config';
 
 export interface DlqMessage {
   event_id: string;
@@ -22,12 +22,11 @@ export interface DlqHandler {
  * Subscribes to DLQ subject and handles poison messages
  */
 export class DlqConsumer extends BaseSubscriber {
-  private config: Config;
+  private config: typeof config;
   private handlers: DlqHandler[] = [];
   private messages: Map<string, DlqMessage> = new Map();
 
   constructor() {
-    const config = Config.getInstance();
     super(config.dlqSubject);
     this.config = config;
   }
