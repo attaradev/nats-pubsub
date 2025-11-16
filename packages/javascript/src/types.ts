@@ -1,4 +1,4 @@
-import { NatsConnection, JetStreamClient, JsMsg } from 'nats';
+import { NatsConnection, JetStreamClient } from 'nats';
 
 export interface NatsPubsubConfig {
   natsUrls: string | string[];

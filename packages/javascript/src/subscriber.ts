@@ -11,7 +11,7 @@ export function subscriber(subjects: string | string[], options?: SubscriberOpti
       subjects = subjectArray;
       options = options;
 
-      async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
+      async call(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
         // This will be overridden by the actual implementation
         throw new Error('Subscriber must implement call() method');
       }

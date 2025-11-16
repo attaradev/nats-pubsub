@@ -202,7 +202,7 @@ describe('Publisher', () => {
 
       try {
         await publisher.publish('users', 'user', 'created', { id: '123' });
-      } catch (e) {
+      } catch {
         // Expected error
       }
 

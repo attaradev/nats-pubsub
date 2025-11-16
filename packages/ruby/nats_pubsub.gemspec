@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
 
   # Runtime environment
   spec.required_ruby_version     = '>= 2.7.0'
-  spec.required_rubygems_version = '>= 3.3.0'
+  spec.required_rubygems_version = '>= 3.2.0'
 
   # Rich metadata
   spec.metadata = {
@@ -42,9 +42,9 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # ---- Runtime dependencies ----
-  spec.add_dependency 'activerecord',  '>= 6.0'
-  spec.add_dependency 'activesupport', '>= 6.0'
-  spec.add_dependency 'nats-pure',     '~> 2.4'
+  spec.add_dependency 'activerecord',  '>= 6.0', '< 9'
+  spec.add_dependency 'activesupport', '>= 6.0', '< 9'
+  spec.add_dependency 'nats-pure',     '~> 2.5'
   spec.add_dependency 'oj', '>= 3.16'
   spec.add_dependency 'sinatra', '>= 3', '< 5'  # For Web UI
 end

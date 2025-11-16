@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   nats:
-    image: nats:latest
+    image: nats:2.10-alpine
     container_name: nats-pubsub-nats
     ports:
       - "4222:4222"  # Client connections
@@ -24,9 +22,18 @@ services:
       start_period: 10s
     networks:
       - nats-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: nats-pubsub-postgres
     environment:
       POSTGRES_DB: nats_pubsub_dev
@@ -42,11 +49,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - nats-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   nats-cli:
-    image: natsio/nats-box:latest
+    image: natsio/nats-box:0.19.2
     container_name: nats-pubsub-cli
     command: tail -f /dev/null
     depends_on:
@@ -56,10 +73,11 @@ services:
       - nats-network
     environment:
       NATS_URL: nats://nats:4222
+    restart: unless-stopped
 
   # Optional: NATS monitoring dashboard
   nats-surveyor:
-    image: natsio/nats-surveyor:latest
+    image: natsio/nats-surveyor:0.9.5
     container_name: nats-pubsub-surveyor
     command:
       - "-s"
@@ -73,10 +91,19 @@ services:
         condition: service_healthy
     networks:
       - nats-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
 
   # Optional: Prometheus for metrics collection
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.0
     container_name: nats-pubsub-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -91,11 +118,21 @@ services:
     networks:
       - nats-network
     depends_on:
-      - nats-surveyor
+      nats-surveyor:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
   # Optional: Grafana for dashboards
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4
     container_name: nats-pubsub-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -109,7 +146,17 @@ services:
     networks:
       - nats-network
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
 volumes:
   nats-data:

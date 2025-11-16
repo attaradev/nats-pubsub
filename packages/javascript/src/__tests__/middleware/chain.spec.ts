@@ -201,7 +201,7 @@ describe('MiddlewareChain', () => {
         call: async (event, _metadata, next) => {
           try {
             await next();
-          } catch (_error) {
+          } catch {
             // Handle error - don't propagate
             event.error_handled = true;
           }

@@ -12,6 +12,10 @@ on:
       - "packages/javascript/**"
       - ".github/workflows/javascript.yml"
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,32 +24,28 @@ jobs:
         node-version: ["18", "20", "24"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
         with:
           fetch-depth: 0 # Fetch all history for conventional commits
 
       - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.0.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
-          cache-dependency-path: packages/javascript/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: packages/javascript
-        run: npm ci
+        run: npm ci --workspace=packages/javascript
 
       - name: Run linter
-        working-directory: packages/javascript
-        run: npm run lint
+        run: npm run lint --workspace=packages/javascript
 
       - name: Run tests
-        working-directory: packages/javascript
-        run: npm test
+        run: npm test --workspace=packages/javascript
 
       - name: Build TypeScript
-        working-directory: packages/javascript
-        run: npm run build
+        run: npm run build --workspace=packages/javascript
 
   detect-version:
     runs-on: ubuntu-latest
@@ -56,7 +56,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
         with:
           fetch-depth: 0
 
@@ -112,21 +112,23 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-version
     if: needs.detect-version.outputs.should-release == 'true'
+    defaults:
+      run:
+        working-directory: packages/javascript
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.0.0
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
-          cache-dependency-path: packages/javascript/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: packages/javascript
-        run: npm ci
+        run: npm ci --workspace=packages/javascript
 
       - name: Update version
         working-directory: packages/javascript
@@ -142,9 +144,9 @@ jobs:
           # Get commits since last tag for changelog
           LAST_TAG=$(git describe --tags --abbrev=0 --match "javascript-v*" 2>/dev/null || echo "")
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges -- packages/javascript/)
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges -- .)
           else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges -- packages/javascript/)
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges -- .)
           fi
 
           # Create changelog entry
@@ -153,6 +155,7 @@ jobs:
           rm -f CHANGELOG.md.bak
 
       - name: Commit version bump
+        working-directory: ../..
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -162,17 +165,24 @@ jobs:
           git push origin main --tags
 
       - name: Build TypeScript
-        working-directory: packages/javascript
-        run: npm run build
+        run: npm run build --workspace=packages/javascript
 
       - name: Publish to npm
         working-directory: packages/javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          # Try trusted publishing first (for automated releases), fallback to NPM_TOKEN (for initial publishing)
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "Publishing with NPM_TOKEN..."
+            npm publish --access public
+          else
+            echo "Publishing with Trusted Publishing (provenance)..."
+            npm publish --provenance --access public
+          fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.3
         with:
           tag_name: javascript-v${{ needs.detect-version.outputs.version }}
           name: JavaScript v${{ needs.detect-version.outputs.version }}

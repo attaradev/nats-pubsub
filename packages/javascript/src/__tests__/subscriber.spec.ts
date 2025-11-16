@@ -150,7 +150,7 @@ describe('BaseSubscriber', () => {
 
     it('should support async operations', async () => {
       class AsyncSubscriber extends BaseSubscriber {
-        async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
+        async call(event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
           await new Promise((resolve) => setTimeout(resolve, 10));
           event.processed = true;
         }

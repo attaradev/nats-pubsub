@@ -38,7 +38,7 @@ Each package has its own CI/CD workflow that:
    - Updates CHANGELOG.md
    - Commits and tags the release
    - Builds gem
-   - Publishes to RubyGems
+   - Publishes to RubyGems using Trusted Publishing (OIDC)
    - Creates GitHub release
 
 ### JavaScript Package (`.github/workflows/javascript.yml`)
@@ -67,7 +67,7 @@ Each package has its own CI/CD workflow that:
    - Updates CHANGELOG.md
    - Commits and tags the release
    - Builds TypeScript
-   - Publishes to npm
+   - Publishes to npm using Trusted Publishing with provenance attestation
    - Creates GitHub release
 
 ## Conventional Commits
@@ -123,21 +123,59 @@ Each package uses its own tag namespace:
 
 This allows independent versioning and releases.
 
-## Required Secrets
+## Trusted Publishing Setup (Recommended)
 
-Configure these secrets in your GitHub repository settings:
+This project uses **Trusted Publishing** with OpenID Connect (OIDC) for secure, automated releases without long-lived secrets. This is the modern, industry-standard approach recommended by both RubyGems and npm.
 
-### For Ruby Package
+### Benefits of Trusted Publishing
 
-- `RUBYGEMS_API_KEY`: API key for publishing to RubyGems
-  - Get from: <https://rubygems.org/profile/edit>
-  - Requires gem ownership permissions
+- **Enhanced Security**: No long-lived API tokens to manage or risk exposure
+- **Simplified Setup**: No secrets to rotate or accidentally leak
+- **Automatic Provenance**: Cryptographic proof of package origin (npm)
+- **Industry Standard**: Follows OpenSSF best practices
 
-### For JavaScript Package
+### Setup Instructions
 
-- `NPM_TOKEN`: Authentication token for npm
-  - Generate at: <https://www.npmjs.com/settings/[username]/tokens>
-  - Choose "Automation" token type
+#### For Ruby Package (RubyGems)
+
+1. Go to [rubygems.org](https://rubygems.org) and sign in
+2. Navigate to your gem's settings
+3. Click on "Trusted Publishing"
+4. Add a new trusted publisher with:
+   - **GitHub Repository**: `attaradev/nats_pubsub`
+   - **Workflow**: `ruby.yml`
+   - **Environment**: (leave blank unless using environments)
+5. RubyGems will pre-populate the fields - just verify and save
+
+#### For JavaScript Package (npm)
+
+1. Go to [npmjs.com](https://www.npmjs.com) and sign in
+2. Navigate to your package settings
+3. Click on "Publishing Access"
+4. Configure trusted publisher with:
+   - **GitHub Repository**: `attaradev/nats_pubsub`
+   - **Workflow**: `javascript.yml`
+   - **Environment**: (leave blank unless using environments)
+5. Save the configuration
+
+### Workflow Permissions
+
+Both workflows are configured with the required permissions:
+
+```yaml
+permissions:
+  contents: write    # For creating releases and pushing tags
+  id-token: write   # For OIDC token generation
+```
+
+### Legacy Secrets (Not Required)
+
+If you're migrating from an older setup, these secrets are **no longer needed**:
+
+- ~~`RUBYGEMS_API_KEY`~~ - Replaced by Trusted Publishing
+- ~~`NPM_TOKEN`~~ - Replaced by Trusted Publishing
+
+You can safely remove these secrets from your repository settings.
 
 ## Manual Release Process
 
@@ -230,6 +268,11 @@ git push origin main --tags
 5. **Test locally**: Run `npm test` or `bundle exec rspec` before pushing
 6. **Semantic versioning**: Follow [semver](https://semver.org/) guidelines
 
+## Recent Enhancements
+
+- ✅ **Trusted Publishing**: Implemented OIDC-based publishing for both npm and RubyGems (2025)
+- ✅ **Provenance Attestations**: npm packages now include cryptographic proof of origin
+
 ## Future Enhancements
 
 Potential improvements to consider:
@@ -240,3 +283,4 @@ Potential improvements to consider:
 - Create release notes templates
 - Add changelog validation
 - Implement pre-release versions (alpha, beta, rc)
+- Consider using release-please for automated versioning

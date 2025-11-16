@@ -2,7 +2,6 @@ import {
   AckPolicy,
   ConsumerConfig,
   DeliverPolicy,
-  JetStreamClient,
   JsMsg,
   ReplayPolicy,
 } from 'nats';
@@ -78,7 +77,6 @@ export class Consumer {
    * Ensure JetStream topology (stream) exists
    */
   private async ensureTopology(): Promise<void> {
-    const js = connection.getJetStream();
     const jsm = await connection.getConnection().jetstreamManager();
     const cfg = config.get();
     const streamName = config.streamName;

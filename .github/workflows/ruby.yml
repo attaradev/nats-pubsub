@@ -4,28 +4,32 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'packages/ruby/**'
-      - '.github/workflows/ruby.yml'
+      - "packages/ruby/**"
+      - ".github/workflows/ruby.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'packages/ruby/**'
-      - '.github/workflows/ruby.yml'
+      - "packages/ruby/**"
+      - ".github/workflows/ruby.yml"
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby-version: ['2.7', '3.0', '3.1', '3.2']
+        ruby-version: ["2.7", "3.0", "3.1", "3.2", "3.3", "3.4"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
         with:
-          fetch-depth: 0  # Fetch all history for conventional commits
+          fetch-depth: 0 # Fetch all history for conventional commits
 
       - name: Set up Ruby ${{ matrix.ruby-version }}
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.210.0
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
@@ -52,7 +56,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
         with:
           fetch-depth: 0
 
@@ -60,9 +64,9 @@ jobs:
         id: check
         run: |
           # Get commits since last tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"%s" --no-merges)
+            COMMITS=$(git log --pretty=format:"%s" --no-merges -- packages/ruby/)
           else
             COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges -- packages/ruby/)
           fi
@@ -78,11 +82,11 @@ jobs:
         id: version
         if: steps.check.outputs.should-release == 'true'
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "ruby-v0.0.0")
           COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges -- packages/ruby/)
 
           # Parse current version
-          CURRENT_VERSION=${LAST_TAG#v}
+          CURRENT_VERSION=${LAST_TAG#ruby-v}
           IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
           MAJOR=${VERSION_PARTS[0]:-0}
           MINOR=${VERSION_PARTS[1]:-0}
@@ -108,19 +112,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-version
     if: needs.detect-version.outputs.should-release == 'true'
+    defaults:
+      run:
+        working-directory: packages/ruby
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.0
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.210.0
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
           bundler-cache: true
           working-directory: packages/ruby
 
       - name: Update version
-        working-directory: packages/ruby
         run: |
           NEW_VERSION="${{ needs.detect-version.outputs.version }}"
 
@@ -132,11 +138,11 @@ jobs:
           TODAY=$(date +%Y-%m-%d)
 
           # Get commits since last tag for changelog
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "")
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges -- packages/ruby/)
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --no-merges -- .)
           else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges -- packages/ruby/)
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges -- .)
           fi
 
           # Create changelog entry
@@ -145,6 +151,7 @@ jobs:
           rm -f CHANGELOG.md.bak
 
       - name: Commit version bump
+        working-directory: .
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -154,24 +161,13 @@ jobs:
           git push origin main --tags
 
       - name: Build gem
-        working-directory: packages/ruby
         run: gem build nats_pubsub.gemspec
 
-      - name: Publish to RubyGems
-        working-directory: packages/ruby
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: |
-          mkdir -p ~/.gem
-          cat > ~/.gem/credentials << EOF
-          ---
-          :rubygems_api_key: ${GEM_HOST_API_KEY}
-          EOF
-          chmod 0600 ~/.gem/credentials
-          gem push nats_pubsub-*.gem
+      - name: Publish to RubyGems using Trusted Publishing
+        run: gem push *.gem
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.3
         with:
           tag_name: ruby-v${{ needs.detect-version.outputs.version }}
           name: Ruby v${{ needs.detect-version.outputs.version }}
@@ -179,6 +175,6 @@ jobs:
             Ruby package release v${{ needs.detect-version.outputs.version }}
 
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for details.
-          files: packages/ruby/nats_pubsub-*.gem
+          files: packages/ruby/*.gem
           draft: false
           prerelease: false

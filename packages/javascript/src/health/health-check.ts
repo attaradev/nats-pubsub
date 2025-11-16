@@ -56,7 +56,6 @@ export class HealthCheck {
         };
       }
 
-      const stats = conn.stats();
       return {
         connected: !conn.isClosed(),
         servers: conn.getServer()?.length || 0,

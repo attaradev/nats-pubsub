@@ -57,7 +57,7 @@ export class PrometheusMetrics {
       this.promClient.collectDefaultMetrics({ register: this.register });
 
       this.initializeMetrics();
-    } catch (error) {
+    } catch {
       console.warn('prom-client not installed. Install it with: npm install prom-client');
       throw new Error('prom-client is required for PrometheusMetrics');
     }
