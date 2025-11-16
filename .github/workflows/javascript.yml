@@ -172,7 +172,7 @@ jobs:
         run: npm publish --access public
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: javascript-v${{ needs.detect-version.outputs.version }}
           name: JavaScript v${{ needs.detect-version.outputs.version }}
