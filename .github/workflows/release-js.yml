@@ -1,0 +1,107 @@
+name: JavaScript Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (required)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (skip publishing)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Update version
+        run: |
+          cd packages/javascript
+          pnpm version ${{ github.event.inputs.version }} --no-git-tag-version
+
+      - name: Commit version bump
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add packages/javascript/package.json
+          git commit -m "chore(javascript): release v${{ github.event.inputs.version }}"
+          git tag "javascript-v${{ github.event.inputs.version }}"
+          git push origin ${{ github.ref_name }} --tags
+
+      - name: Dry run summary
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🏃 DRY RUN MODE - No changes will be published"
+          echo "Would release version: ${{ github.event.inputs.version }}"
+
+      - name: Build TypeScript
+        run: pnpm --filter nats-pubsub build
+
+      - name: Publish to npm
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd packages/javascript
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+            pnpm publish --access public --no-git-checks
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
+
+      - name: Verify npm publication
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "⏳ Waiting 15 seconds for npm registry propagation..."
+          sleep 15
+          if npm view nats-pubsub@${{ github.event.inputs.version }} version; then
+            echo "✅ Package successfully published"
+          else
+            echo "⚠️  Package not found on npm yet"
+            exit 0
+          fi
+
+      - name: Create GitHub Release
+        if: github.event.inputs.dry_run != 'true'
+        uses: softprops/action-gh-release@v2.3.3
+        with:
+          tag_name: javascript-v${{ github.event.inputs.version }}
+          name: JavaScript v${{ github.event.inputs.version }}
+          body: |
+            JavaScript/TypeScript package release v${{ github.event.inputs.version }}
+
+            ## Installation
+
+            ```bash
+            pnpm add nats-pubsub@${{ github.event.inputs.version }}
+            ```
+          draft: false
+          prerelease: false

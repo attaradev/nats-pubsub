@@ -1,0 +1,55 @@
+<h2>Dashboard</h2>
+
+<h3 style="margin-top: 30px; margin-bottom: 15px;">Outbox Statistics</h3>
+<div class="stats">
+  <div class="stat-card">
+    <h3>Total</h3>
+    <div class="value"><%= @outbox_stats[:total] || 0 %></div>
+  </div>
+  <div class="stat-card warning">
+    <h3>Pending</h3>
+    <div class="value"><%= @outbox_stats[:pending] || 0 %></div>
+  </div>
+  <div class="stat-card warning">
+    <h3>Publishing</h3>
+    <div class="value"><%= @outbox_stats[:publishing] || 0 %></div>
+  </div>
+  <div class="stat-card success">
+    <h3>Sent</h3>
+    <div class="value"><%= @outbox_stats[:sent] || 0 %></div>
+  </div>
+  <div class="stat-card danger">
+    <h3>Failed</h3>
+    <div class="value"><%= @outbox_stats[:failed] || 0 %></div>
+  </div>
+</div>
+
+<h3 style="margin-top: 30px; margin-bottom: 15px;">Inbox Statistics</h3>
+<div class="stats">
+  <div class="stat-card">
+    <h3>Total</h3>
+    <div class="value"><%= @inbox_stats[:total] || 0 %></div>
+  </div>
+  <div class="stat-card warning">
+    <h3>Received</h3>
+    <div class="value"><%= @inbox_stats[:received] || 0 %></div>
+  </div>
+  <div class="stat-card warning">
+    <h3>Processing</h3>
+    <div class="value"><%= @inbox_stats[:processing] || 0 %></div>
+  </div>
+  <div class="stat-card success">
+    <h3>Processed</h3>
+    <div class="value"><%= @inbox_stats[:processed] || 0 %></div>
+  </div>
+  <div class="stat-card danger">
+    <h3>Failed</h3>
+    <div class="value"><%= @inbox_stats[:failed] || 0 %></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 30px;">
+  <h2>Quick Links</h2>
+  <p><a href="/outbox" class="btn btn-primary">View Outbox Events</a></p>
+  <p style="margin-top: 10px;"><a href="/inbox" class="btn btn-primary">View Inbox Events</a></p>
+</div>
