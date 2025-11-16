@@ -18,10 +18,13 @@ jobs:
       javascript: ${{ steps.filter.outputs.javascript }}
     steps:
       - uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
 
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
           filters: |
             ruby:
               - 'packages/ruby/**'
