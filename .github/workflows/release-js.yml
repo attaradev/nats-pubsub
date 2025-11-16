@@ -119,7 +119,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: detect-version
-    if: needs.detect-version.outputs.should-release == 'true'
+    if: |
+      needs.detect-version.outputs.should-release == 'true' &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
 
     steps:
       - uses: actions/checkout@v5.0.0
@@ -166,19 +168,31 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s" --no-merges -- .)
           fi
 
-          # Create changelog entry
-          CHANGELOG_ENTRY="## [Unreleased]\n\n## [$NEW_VERSION] - $TODAY\n\n### Changes\n$COMMITS\n"
-          sed -i.bak "s/## \[Unreleased\]/$CHANGELOG_ENTRY/" CHANGELOG.md
-          rm -f CHANGELOG.md.bak
+          # Create changelog entry - use printf to properly handle newlines and escape sequences
+          {
+            echo "## [Unreleased]"
+            echo ""
+            echo "## [$NEW_VERSION] - $TODAY"
+            echo ""
+            echo "### Changes"
+            echo "$COMMITS"
+            echo ""
+            tail -n +2 CHANGELOG.md
+          } > CHANGELOG.md.tmp
+          mv CHANGELOG.md.tmp CHANGELOG.md
 
       - name: Commit version bump
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+
+          # Pull latest changes to avoid conflicts
+          git pull --rebase origin ${{ github.ref_name }}
+
           git add packages/javascript/package.json packages/javascript/CHANGELOG.md
           git commit -m "chore(javascript): release v${{ needs.detect-version.outputs.version }}" || echo "No changes to commit"
           git tag "javascript-v${{ needs.detect-version.outputs.version }}"
-          git push origin main --tags
+          git push origin ${{ github.ref_name }} --tags
 
       - name: Build TypeScript
         run: pnpm --filter nats-pubsub build
@@ -188,9 +202,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd packages/javascript
-          # Try trusted publishing first (for automated releases), fallback to NPM_TOKEN (for initial publishing)
+          # Use NPM_TOKEN if available, otherwise try trusted publishing
           if [ -n "$NODE_AUTH_TOKEN" ]; then
             echo "Publishing with NPM_TOKEN..."
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
             pnpm publish --access public --no-git-checks
           else
             echo "Publishing with Trusted Publishing (provenance)..."
