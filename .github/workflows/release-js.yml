@@ -185,10 +185,14 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+
+          # Pull latest changes to avoid conflicts
+          git pull --rebase origin ${{ github.ref_name }}
+
           git add packages/javascript/package.json packages/javascript/CHANGELOG.md
           git commit -m "chore(javascript): release v${{ needs.detect-version.outputs.version }}" || echo "No changes to commit"
           git tag "javascript-v${{ needs.detect-version.outputs.version }}"
-          git push origin main --tags
+          git push origin ${{ github.ref_name }} --tags
 
       - name: Build TypeScript
         run: pnpm --filter nats-pubsub build
@@ -198,9 +202,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd packages/javascript
-          # Try trusted publishing first (for automated releases), fallback to NPM_TOKEN (for initial publishing)
+          # Use NPM_TOKEN if available, otherwise try trusted publishing
           if [ -n "$NODE_AUTH_TOKEN" ]; then
             echo "Publishing with NPM_TOKEN..."
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
             pnpm publish --access public --no-git-checks
           else
             echo "Publishing with Trusted Publishing (provenance)..."
