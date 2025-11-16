@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     types: [opened, synchronize]
 
@@ -21,8 +20,8 @@ jobs:
   release:
     name: Create Release PR or Publish
     runs-on: ubuntu-latest
-    # Only run on develop branch pushes (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    # Only run on main branch pushes (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
@@ -78,7 +77,7 @@ jobs:
           body: |
             JavaScript/TypeScript package release v${{ steps.packages.outputs.js_version }}
 
-            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/develop/packages/javascript/CHANGELOG.md) for details.
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/javascript/CHANGELOG.md) for details.
 
             ## Installation
 
