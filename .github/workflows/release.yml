@@ -17,13 +17,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Create Release PR or Publish
+  # Wait for CI to complete successfully
+  wait-for-ci:
+    name: Wait for CI
     runs-on: ubuntu-latest
-    # Only run on main branch pushes (not PRs) and after CI passes
-    needs: []
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     steps:
       - name: Wait for CI to complete
         uses: lewagon/wait-on-check-action@v1.3.4
@@ -34,7 +32,14 @@ jobs:
           wait-interval: 10
           allowed-conclusions: success,skipped
 
+  release:
+    name: Create Release PR or Publish
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes (not PRs) and after CI passes
+    needs: [wait-for-ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+    steps:
       - name: Checkout code
         uses: actions/checkout@v5.0.0
         with:
@@ -120,6 +125,7 @@ jobs:
     name: Release Ruby Package
     runs-on: ubuntu-latest
     # Only run on main branch after tests pass
+    needs: [wait-for-ci]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
