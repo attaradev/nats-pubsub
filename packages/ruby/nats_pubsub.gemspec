@@ -46,5 +46,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'activesupport', '>= 6.0'
   spec.add_dependency 'nats-pure',     '~> 2.4'
   spec.add_dependency 'oj', '>= 3.16'
-  spec.add_dependency 'sinatra', '~> 3.0'  # For Web UI
+  spec.add_dependency 'sinatra', '>= 3', '< 5'  # For Web UI
 end
