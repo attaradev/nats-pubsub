@@ -23,6 +23,11 @@ RSpec.describe NatsPubsub::MessageProcessor do
            nak: nil)
   end
 
+  before do
+    # Stub the stream_info call that's used to check if DLQ stream exists
+    allow(jts).to receive(:stream_info).and_return(true)
+  end
+
   after { NatsPubsub.reset! }
 
   context 'when handler succeeds' do

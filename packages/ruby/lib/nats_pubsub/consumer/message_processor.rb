@@ -61,6 +61,8 @@ module NatsPubsub
       event = parse_message(msg, ctx)
       return unless event
 
+      ensure_dlq_stream if NatsPubsub.config.use_dlq
+
       process_event(msg, event, ctx)
     rescue StandardError => e
       Logging.error(
@@ -77,9 +79,10 @@ module NatsPubsub
       data = msg.data
       Oj.load(data, mode: :strict)
     rescue Oj::ParseError => e
-      @dlq.publish(msg, ctx,
-                   reason: 'malformed_json', error_class: e.class.name, error_message: e.message)
-      msg.ack
+      published = @dlq.publish(msg, ctx,
+                               reason: 'malformed_json', error_class: e.class.name, error_message: e.message)
+      msg.ack if published || !NatsPubsub.config.use_dlq
+      safe_nak(msg) unless published || !NatsPubsub.config.use_dlq
       Logging.warn(
         "Malformed JSON → DLQ event_id=#{ctx.event_id} subject=#{ctx.subject} " \
         "seq=#{ctx.seq} deliveries=#{ctx.deliveries}: #{e.message}",
@@ -96,9 +99,10 @@ module NatsPubsub
         tag: 'NatsPubsub::Consumer'
       )
     rescue *UNRECOVERABLE_ERRORS => e
-      @dlq.publish(msg, ctx,
-                   reason: 'unrecoverable', error_class: e.class.name, error_message: e.message)
-      msg.ack
+      published = @dlq.publish(msg, ctx,
+                               reason: 'unrecoverable', error_class: e.class.name, error_message: e.message)
+      msg.ack if published || !NatsPubsub.config.use_dlq
+      safe_nak(msg, ctx, e) unless published || !NatsPubsub.config.use_dlq
       Logging.warn(
         "DLQ (unrecoverable) event_id=#{ctx.event_id} subject=#{ctx.subject} " \
         "seq=#{ctx.seq} deliveries=#{ctx.deliveries} err=#{e.class}: #{e.message}",
@@ -110,10 +114,16 @@ module NatsPubsub
 
     def ack_or_nak(msg, ctx, error)
       max_deliver = NatsPubsub.config.max_deliver.to_i
-      if ctx.deliveries >= max_deliver
-        @dlq.publish(msg, ctx,
-                     reason: 'max_deliver_exceeded', error_class: error.class.name, error_message: error.message)
-        msg.ack
+      dlq_max_attempts = NatsPubsub.config.dlq_max_attempts.to_i
+      if ctx.deliveries >= max_deliver || ctx.deliveries >= dlq_max_attempts
+        published = @dlq.publish(msg, ctx,
+                                 reason: 'max_deliver_exceeded', error_class: error.class.name, error_message: error.message)
+        if published || !NatsPubsub.config.use_dlq
+          # term to avoid infinite loops when DLQ is failing repeatedly
+          msg.term
+        else
+          safe_nak(msg, ctx, error)
+        end
         Logging.warn(
           "DLQ (max_deliver) event_id=#{ctx.event_id} subject=#{ctx.subject} " \
           "seq=#{ctx.seq} deliveries=#{ctx.deliveries} err=#{error.class}: #{error.message}",
@@ -130,16 +140,44 @@ module NatsPubsub
     end
 
     def safe_nak(msg, ctx = nil, _error = nil)
-      # If your NATS client supports delayed NAKs, uncomment:
-      # delay = @backoff.delay(ctx&.deliveries.to_i, error) if ctx
-      # msg.nak(next_delivery_delay: delay)
-      msg.nak
+      delay = @backoff.delay(ctx&.deliveries.to_i, _error) if ctx
+      if delay
+        msg.nak(next_delivery_delay: delay)
+      else
+        msg.nak
+      end
     rescue StandardError => e
       Logging.error(
         "Failed to NAK event_id=#{ctx&.event_id} deliveries=#{ctx&.deliveries}: " \
         "#{e.class} #{e.message}",
         tag: 'NatsPubsub::Consumer'
       )
+    end
+
+    def ensure_dlq_stream
+      return if @dlq_stream_checked
+
+      dlq_stream = NatsPubsub.config.dlq_stream_name
+      @jts.stream_info(dlq_stream)
+      @dlq_stream_checked = true
+    rescue NATS::JetStream::Error::NotFound
+      Logging.info(
+        "Creating DLQ stream #{dlq_stream} for subject #{NatsPubsub.config.dlq_subject}",
+        tag: 'NatsPubsub::Consumer'
+      )
+      @jts.add_stream(
+        name: dlq_stream,
+        subjects: [NatsPubsub.config.dlq_subject],
+        retention: :limits,
+        max_age: 60 * 60 * 24 * 30 # 30 days in seconds
+      )
+      @dlq_stream_checked = true
+    rescue StandardError => e
+      Logging.error(
+        "Failed to ensure DLQ stream: #{e.class} #{e.message}",
+        tag: 'NatsPubsub::Consumer'
+      )
+      raise
     end
   end
 end

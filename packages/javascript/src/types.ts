@@ -13,6 +13,14 @@ export interface NatsPubsubConfig {
   useDlq?: boolean;
   streamName?: string;
   dlqSubject?: string;
+  // Optional metrics hook for DLQ counting
+  metrics?: {
+    recordDlqMessage(subject: string, reason: string): void;
+  };
+  // Execution controls
+  perMessageConcurrency?: number;
+  subscriberTimeoutMs?: number;
+  dlqMaxAttempts?: number;
   logger?: Logger;
 }
 

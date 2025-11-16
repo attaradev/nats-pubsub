@@ -1,7 +1,7 @@
 # NatsPubsub
 
 <p align="center">
-  <strong>Declarative PubSub messaging for NATS JetStream</strong>
+  <strong>Declarative Pub/Sub messaging for NATS JetStream</strong>
 </p>
 
 <p align="center">
@@ -12,14 +12,11 @@
   <a href="https://github.com/attaradev/nats_pubsub/actions/workflows/ruby.yml"><img src="https://github.com/attaradev/nats_pubsub/actions/workflows/ruby.yml/badge.svg" alt="Ruby CI"></a>
   <a href="https://github.com/attaradev/nats_pubsub/actions/workflows/javascript.yml"><img src="https://github.com/attaradev/nats_pubsub/actions/workflows/javascript.yml/badge.svg" alt="JavaScript CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-</p>
-
-<!-- Badges for package versions and downloads will be added after initial publication:
   <a href="https://rubygems.org/gems/nats_pubsub"><img src="https://img.shields.io/gem/v/nats_pubsub.svg" alt="Gem Version"></a>
   <a href="https://www.npmjs.com/package/nats-pubsub"><img src="https://img.shields.io/npm/v/nats-pubsub.svg" alt="npm Version"></a>
   <a href="https://rubygems.org/gems/nats_pubsub"><img src="https://img.shields.io/gem/dt/nats_pubsub.svg" alt="Gem Downloads"></a>
   <a href="https://www.npmjs.com/package/nats-pubsub"><img src="https://img.shields.io/npm/dt/nats-pubsub.svg" alt="npm Downloads"></a>
--->
+</p>
 
 <p align="center">
   <strong>Implementations for Ruby 💎 and JavaScript/TypeScript 🟦 with full interoperability</strong>
@@ -40,7 +37,7 @@
 
 ## 🚀 Quick Start
 
-Start the complete development environment with Docker Compose:
+Start the full development environment with Docker Compose:
 
 ```bash
 git clone https://github.com/attaradev/nats_pubsub.git
@@ -48,44 +45,44 @@ cd nats-pubsub
 docker compose up -d
 ```
 
-This starts NATS, PostgreSQL, Prometheus, and Grafana with pre-configured monitoring.
+This starts NATS, PostgreSQL, Prometheus, and Grafana with preconfigured monitoring.
 
 **For package-specific setup:**
 
-- **[Ruby Setup Guide →](./packages/ruby/README.md#quick-start)**
-- **[JavaScript Setup Guide →](./packages/javascript/README.md#quick-start)**
+- **[Ruby Setup →](./packages/ruby/README.md#quick-start)**
+- **[JavaScript Setup →](./packages/javascript/README.md#quick-start)**
 
 ---
 
 ## 📦 Packages
 
-### [Ruby Package](./packages/ruby) 💎
+### 💎 [Ruby Package](./packages/ruby)
 
-Rails-integrated pub/sub library with Web UI, Inbox/Outbox, and ActiveRecord support.
+Rails-integrated Pub/Sub library with Web UI, Inbox/Outbox, and ActiveRecord support.
 
 ```ruby
 gem "nats_pubsub", "~> 0.1"
 ```
 
-**[📖 Full Ruby Documentation →](./packages/ruby/README.md)**
+**[📖 Full Ruby Docs →](./packages/ruby/README.md)**
 
 ---
 
-### [JavaScript/TypeScript Package](./packages/javascript) 🟦
+### 🟦 [JavaScript/TypeScript Package](./packages/javascript)
 
-Node.js pub/sub library with full TypeScript support and enterprise monitoring.
+Node.js Pub/Sub library with full TypeScript support and enterprise monitoring.
 
 ```bash
 pnpm add nats-pubsub
 ```
 
-**[📖 Full JavaScript Documentation →](./packages/javascript/README.md)**
+**[📖 Full JavaScript Docs →](./packages/javascript/README.md)**
 
 ---
 
 ## ✨ Features
 
-**Core Capabilities:**
+### Core Capabilities
 
 - 🎯 Declarative subscriber API
 - 🧨 Dead Letter Queue (DLQ) support
@@ -93,25 +90,25 @@ pnpm add nats-pubsub
 - 🎭 Middleware system for extensibility
 - 🔄 Auto-topology management for JetStream
 
-**Ruby-Specific:**
+### Ruby-Specific
 
-- 🛡️ Inbox/Outbox patterns for reliability
+- 🛡️ Inbox/Outbox reliability patterns
 - 📊 Web UI for monitoring
 - 🔗 ActiveRecord integration
 - 🚂 Rails generators
 
-**JavaScript-Specific:**
+### JavaScript-Specific
 
 - 📊 Prometheus metrics
 - ❤️ Health check endpoints
 - 📦 Batch publishing API
 - 🚀 Full TypeScript support
 
-**Cross-Language:**
+### Cross-Language
 
 Both implementations use identical event formats, enabling seamless interoperability between Ruby and JavaScript services.
 
-For detailed feature documentation, see the package-specific READMEs.
+For detailed feature documentation, see each package’s README.
 
 ---
 
@@ -129,6 +126,10 @@ cd packages/javascript && pnpm install
 cd packages/ruby && bundle exec rspec
 cd packages/javascript && pnpm test
 
+# Run with coverage
+cd packages/javascript && pnpm test -- --coverage
+cd packages/ruby && bundle exec rspec --format documentation
+
 # Build all packages
 pnpm build
 
@@ -136,24 +137,40 @@ pnpm build
 pnpm lint
 ```
 
-**For detailed development guides:**
+### Git Hooks
 
-- **[Ruby Development →](./packages/ruby/README.md#development)**
-- **[JavaScript Development →](./packages/javascript/README.md#development)**
-- **[CI/CD Setup →](./docs/CI_CD_SETUP.md)**
+This repository uses **Husky** for Git hooks:
+
+- **pre-commit** → runs lint-staged
+- **commit-msg** → validates Conventional Commits
+- **pre-push** → runs tests before pushing
+
+Set up hooks after cloning:
+
+```bash
+pnpm install  # Automatically configures hooks
+```
+
+**More guides:**
+
+- [Ruby Development →](./packages/ruby/README.md#development)
+- [JavaScript Development →](./packages/javascript/README.md#development)
+- [CI/CD Setup →](./docs/CI_CD_SETUP.md)
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We welcome contributions!
 
-**Quick steps:**
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/amazing-feature`)
-3. Make your changes with tests
-4. Commit using [conventional commits](https://www.conventionalcommits.org/)
+**Quick Steps:**
+
+1. Fork the repo
+2. Create a branch (`git checkout -b feat/awesome-feature`)
+3. Add tests and implement changes
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org/)
 5. Open a Pull Request
 
 ---

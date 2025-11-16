@@ -203,6 +203,8 @@ See [RELEASING.md](./RELEASING.md) for detailed release process documentation.
 
 ## Testing
 
+All contributions must include appropriate tests. We strive for high test coverage to ensure reliability.
+
 ### Ruby Tests
 
 ```bash
@@ -214,6 +216,12 @@ Run specific tests:
 
 ```bash
 bundle exec rspec spec/path/to/spec.rb
+```
+
+Run with coverage report:
+
+```bash
+bundle exec rspec --format documentation
 ```
 
 ### JavaScript Tests
@@ -229,6 +237,19 @@ Run tests in watch mode:
 pnpm test:watch
 ```
 
+Run with coverage report:
+
+```bash
+pnpm test -- --coverage
+```
+
+### Test Coverage Guidelines
+
+- **Minimum coverage**: Aim for at least 80% code coverage
+- **Critical paths**: 100% coverage for core functionality (publishers, consumers, middleware)
+- **New features**: Must include comprehensive tests
+- **Bug fixes**: Must include regression tests
+
 ### Integration Tests
 
 Ensure NATS server is running:
@@ -242,6 +263,16 @@ docker-compose up -d nats
 ```
 
 Then run integration tests for both packages.
+
+### Pre-Push Hook
+
+The pre-push Git hook automatically runs all tests before pushing. This ensures that:
+
+- All tests pass before code is pushed
+- Test coverage requirements are met
+- Code quality is maintained
+
+If tests fail, the push will be blocked. Fix the failing tests before pushing again.
 
 ## Submitting a Pull Request
 

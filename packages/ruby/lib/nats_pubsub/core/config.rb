@@ -5,7 +5,8 @@ module NatsPubsub
     attr_accessor :nats_urls, :env, :app_name, :destination_app,
                   :max_deliver, :ack_wait, :backoff,
                   :use_outbox, :use_inbox, :inbox_model, :outbox_model,
-                  :use_dlq, :logger, :concurrency
+                  :use_dlq, :dlq_max_attempts, :dlq_stream_suffix,
+                  :logger, :concurrency
 
     def initialize
       @nats_urls = ENV['NATS_URLS'] || ENV['NATS_URL'] || 'nats://localhost:4222'
@@ -20,6 +21,8 @@ module NatsPubsub
       @use_outbox   = false
       @use_inbox    = false
       @use_dlq      = true
+      @dlq_max_attempts = 3
+      @dlq_stream_suffix = '-dlq'
       @outbox_model = 'NatsPubsub::OutboxEvent'
       @inbox_model  = 'NatsPubsub::InboxEvent'
       @logger       = nil
@@ -42,6 +45,11 @@ module NatsPubsub
     # DLQ subject for failed messages
     def dlq_subject
       "#{env}.events.dlq"
+    end
+
+    # DLQ stream name
+    def dlq_stream_name
+      "#{stream_name}#{dlq_stream_suffix}"
     end
 
     # Durable consumer name

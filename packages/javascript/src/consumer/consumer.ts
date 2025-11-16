@@ -7,6 +7,7 @@ import {
   ReplayPolicy,
   RetentionPolicy,
   StorageType,
+  headers as natsHeaders,
 } from 'nats';
 import { EventMetadata, Middleware, Subscriber } from '../types';
 import connection from '../core/connection';
@@ -86,13 +87,11 @@ export class Consumer {
     const logger = config.logger;
 
     try {
-      // Try to get existing stream
       await jsm.streams.info(streamName);
       logger.debug('Stream already exists', { stream: streamName });
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === '404') {
-        // Stream doesn't exist, create it
         logger.info('Creating stream...', { stream: streamName });
 
         const subjects = [`${cfg.env}.events.>`];
@@ -113,6 +112,32 @@ export class Consumer {
         logger.info('Stream created successfully', { stream: streamName });
       } else {
         throw error;
+      }
+    }
+
+    // Ensure a dedicated DLQ stream exists if configured
+    if (cfg.useDlq) {
+      const dlqStream = `${streamName}-dlq`;
+      try {
+        await jsm.streams.info(dlqStream);
+        logger.debug('DLQ stream already exists', { stream: dlqStream });
+      } catch (error: unknown) {
+        const err = error as { code?: string };
+        if (err.code === '404') {
+          logger.info('Creating DLQ stream...', { stream: dlqStream, subject: config.dlqSubject });
+          await jsm.streams.add({
+            name: dlqStream,
+            subjects: [config.dlqSubject],
+            retention: RetentionPolicy.Limits,
+            max_age: toNanos(30 * 24 * 60 * 60 * 1000), // 30 days
+            storage: StorageType.File,
+            num_replicas: 1,
+            discard: DiscardPolicy.Old,
+          });
+          logger.info('DLQ stream created', { stream: dlqStream });
+        } else {
+          throw error;
+        }
       }
     }
   }
@@ -178,6 +203,7 @@ export class Consumer {
   private async processMessage(msg: JsMsg, subject: string): Promise<void> {
     const logger = config.logger;
     const subscribers = this.subscribers.get(subject) || [];
+    const cfg = config.get();
 
     try {
       const data = JSON.parse(msg.data.toString());
@@ -201,19 +227,59 @@ export class Consumer {
         deliveries: metadata.deliveries,
       });
 
-      // Process through each subscriber
-      for (const subscriber of subscribers) {
-        await this.middlewareChain.execute(envelope.payload, metadata, async () => {
-          await subscriber.call(envelope.payload, metadata);
+      // Process through each subscriber (run in parallel for efficiency)
+      const limit = Math.max(1, cfg.perMessageConcurrency || subscribers.length || 1);
+      const results: Array<PromiseSettledResult<{ subscriber: string; durationMs: number }>> = [];
+
+      let index = 0;
+      const runNext = async (): Promise<void> => {
+        if (index >= subscribers.length) return;
+        const currentIndex = index++;
+        const subscriber = subscribers[currentIndex];
+        const start = Date.now();
+
+        const exec = async () => {
+          await this.middlewareChain.execute(envelope.payload, metadata, async () => {
+            // Per-subscriber timeout guard
+            if (cfg.subscriberTimeoutMs && cfg.subscriberTimeoutMs > 0) {
+              await Promise.race([
+                subscriber.call(envelope.payload, metadata),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('subscriber_timeout')), cfg.subscriberTimeoutMs)
+                ),
+              ]);
+            } else {
+              await subscriber.call(envelope.payload, metadata);
+            }
+          });
+          return { subscriber: subscriber.constructor.name, durationMs: Date.now() - start };
+        };
+
+        results[currentIndex] = await exec()
+          .then((value) => ({ status: 'fulfilled', value }) as const)
+          .catch((reason) => ({ status: 'rejected', reason }) as const);
+
+        await runNext();
+      };
+
+      const runners = Array.from({ length: Math.min(limit, subscribers.length) }, () => runNext());
+      await Promise.all(runners);
+
+      const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+      if (failed.length === 0) {
+        // Acknowledge the message
+        msg.ack();
+        logger.debug('Message processed successfully', {
+          subject: msg.subject,
+          event_id: metadata.event_id,
         });
+        return;
       }
 
-      // Acknowledge the message
-      msg.ack();
-
-      logger.debug('Message processed successfully', {
-        subject: msg.subject,
-        event_id: metadata.event_id,
+      // If any subscriber failed, route to DLQ with failed subscriber names
+      const failedNames = failed.map((_, idx) => subscribers[idx].constructor.name);
+      await this.handleFailure(msg, new Error(`Subscriber failures: ${failedNames.join(',')}`), {
+        failedSubscribers: failedNames,
       });
     } catch (error) {
       logger.error('Failed to process message', {
@@ -228,7 +294,11 @@ export class Consumer {
   /**
    * Handle processing failures with DLQ support
    */
-  private async handleFailure(msg: JsMsg, error: unknown): Promise<void> {
+  private async handleFailure(
+    msg: JsMsg,
+    error: unknown,
+    extra?: Record<string, unknown>
+  ): Promise<void> {
     const logger = config.logger;
     const cfg = config.get();
     const deliveries = msg.info?.deliveryCount ?? 0;
@@ -240,7 +310,8 @@ export class Consumer {
         await this.publishToDlq(
           msg,
           error,
-          exceededMaxDeliver ? 'max_deliver_exceeded' : 'handler_error'
+          exceededMaxDeliver ? 'max_deliver_exceeded' : 'handler_error',
+          extra
         );
         // Only ack after DLQ publish succeeds
         msg.ack();
@@ -251,12 +322,12 @@ export class Consumer {
       }
     }
 
-    if (exceededMaxDeliver) {
+    if (exceededMaxDeliver || deliveries >= (cfg.dlqMaxAttempts || 3)) {
       logger.warn('Message exceeded max_deliver; dropping', {
         subject: msg.subject,
         deliveries,
       });
-      msg.ack();
+      msg.term();
     } else {
       msg.nak(); // Negative acknowledge for retry
     }
@@ -265,10 +336,16 @@ export class Consumer {
   /**
    * Publish a failed message to the DLQ with context
    */
-  private async publishToDlq(msg: JsMsg, error: unknown, reason: string): Promise<void> {
+  private async publishToDlq(
+    msg: JsMsg,
+    error: unknown,
+    reason: string,
+    extra?: Record<string, unknown>
+  ): Promise<void> {
     const js = connection.getJetStream();
     const cfg = config.get();
-    const rawPayload = msg.data?.toString() ?? '';
+    const rawBuffer = msg.data ? Buffer.from(msg.data) : Buffer.alloc(0);
+    const rawPayload = rawBuffer.toString('utf8');
     let parsedPayload: unknown;
 
     try {
@@ -277,6 +354,9 @@ export class Consumer {
       parsedPayload = rawPayload; // Keep raw if not JSON
     }
 
+    const traceId =
+      (parsedPayload as { trace_id?: string })?.trace_id || msg.headers?.get('trace_id');
+
     const payload = {
       event_id:
         (parsedPayload as { event_id?: string })?.event_id ||
@@ -284,18 +364,34 @@ export class Consumer {
         msg.sid.toString(),
       original_subject: msg.subject,
       payload: parsedPayload,
+      raw_base64: rawBuffer.toString('base64'),
+      headers: msg.headers ? Object.fromEntries(msg.headers) : undefined,
       deliveries: msg.info?.deliveryCount ?? 0,
       reason,
       error:
         error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? 'unknown'),
       occurred_at: new Date().toISOString(),
+      trace_id: traceId || undefined,
+      ...extra,
     };
 
     if (!cfg.dlqSubject) {
       throw new Error('DLQ subject is not configured');
     }
 
-    await js.publish(cfg.dlqSubject, Buffer.from(JSON.stringify(payload)));
+    const hdrs = natsHeaders();
+    hdrs.set('x-dead-letter', 'true');
+    hdrs.set('x-dlq-reason', reason);
+    hdrs.set('x-deliveries', String(msg.info?.deliveryCount ?? 0));
+    if (payload.event_id) hdrs.set('x-event-id', payload.event_id);
+    if (traceId) hdrs.set('x-trace-id', traceId);
+
+    await js.publish(cfg.dlqSubject, Buffer.from(JSON.stringify(payload)), {
+      headers: hdrs,
+      expect: { streamName: cfg.streamName },
+    });
+    cfg.metrics?.recordDlqMessage?.(msg.subject, reason);
+
     config.logger.warn('Message moved to DLQ', {
       subject: msg.subject,
       deliveries: msg.info?.deliveryCount,

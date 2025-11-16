@@ -17,6 +17,20 @@ export interface DlqHandler {
   handle(message: DlqMessage): Promise<void>;
 }
 
+export interface PersistentDlqStore {
+  save(message: DlqMessage): Promise<void>;
+  list(): Promise<DlqMessage[]>;
+  get(eventId: string): Promise<DlqMessage | undefined>;
+  delete(eventId: string): Promise<void>;
+  clear(): Promise<void>;
+  stats?(): Promise<{
+    total: number;
+    bySubject: Record<string, number>;
+    oldestMessage?: Date;
+    newestMessage?: Date;
+  }>;
+}
+
 /**
  * Dead Letter Queue Consumer
  * Subscribes to DLQ subject and handles poison messages
@@ -25,10 +39,12 @@ export class DlqConsumer extends BaseSubscriber {
   private config: typeof config;
   private handlers: DlqHandler[] = [];
   private messages: Map<string, DlqMessage> = new Map();
+  private store?: PersistentDlqStore;
 
-  constructor() {
+  constructor(store?: PersistentDlqStore) {
     super(config.dlqSubject);
     this.config = config;
+    this.store = store;
   }
 
   /**
@@ -66,6 +82,18 @@ export class DlqConsumer extends BaseSubscriber {
       deliveries: metadata.deliveries,
     });
 
+    // Persist if a store is configured
+    if (this.store) {
+      try {
+        await this.store.save(dlqMessage);
+      } catch (error) {
+        this.config.logger.error('Failed to persist DLQ message', {
+          event_id: metadata.event_id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
     // Call registered handlers
     for (const handler of this.handlers) {
       try {
@@ -98,6 +126,13 @@ export class DlqConsumer extends BaseSubscriber {
    */
   clearMessages(): void {
     this.messages.clear();
+    if (this.store) {
+      this.store.clear().catch((error) => {
+        this.config.logger.error('Failed to clear persistent DLQ store', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      });
+    }
   }
 
   /**
@@ -164,7 +199,9 @@ export class AlertDlqHandler implements DlqHandler {
 
     if ((message.deliveries || 0) >= this.alertThreshold) {
       // TODO: Integrate with alerting service (PagerDuty, Slack, etc.)
-      console.error(`ALERT: Message ${message.event_id} exceeded ${this.alertThreshold} deliveries`);
+      console.error(
+        `ALERT: Message ${message.event_id} exceeded ${this.alertThreshold} deliveries`
+      );
       this.alertedEvents.add(message.event_id);
     }
   }
