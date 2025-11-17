@@ -71,7 +71,8 @@ get_js_version() {
 # Get Ruby gem version
 get_ruby_version() {
   if [ -f "$RUBY_VERSION_FILE" ]; then
-    grep -oP "VERSION = '\K[^']+" "$RUBY_VERSION_FILE" 2>/dev/null || echo "0.0.0"
+    # Use sed for cross-platform compatibility (macOS and Linux)
+    sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" "$RUBY_VERSION_FILE" 2>/dev/null || echo "0.0.0"
   else
     echo "0.0.0"
   fi
