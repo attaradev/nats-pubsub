@@ -1,6 +1,3 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 # Skip tests in CI environments
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
   echo "⏭️  Skipping pre-push tests in CI environment"

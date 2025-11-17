@@ -1,8 +1,5 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 # Validate versions if version files changed (unless SKIP_VERSION_CHECK is set)
-if [ -z "$SKIP_VERSION_CHECK" ]; then
+if [ -z "${SKIP_VERSION_CHECK:-}" ]; then
   ./scripts/validate-versions.sh || exit 1
 fi
 

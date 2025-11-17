@@ -57,7 +57,7 @@ validate_js_version() {
     # Check if version changed
     if [ "$current_version" != "$prev_version" ]; then
       # Ensure new version is greater (allow SKIP_VERSION_CHECK to bypass)
-      if [ -z "$SKIP_VERSION_CHECK" ] && ! version_gt "$current_version" "$prev_version"; then
+      if [ -z "${SKIP_VERSION_CHECK:-}" ] && ! version_gt "$current_version" "$prev_version"; then
         log_error "JavaScript version must be greater than previous: $prev_version"
         log_error "Current version: $current_version"
         log_warning "To skip this check, set: SKIP_VERSION_CHECK=1"
@@ -103,7 +103,7 @@ validate_ruby_version() {
     # Check if version changed
     if [ "$current_version" != "$prev_version" ]; then
       # Ensure new version is greater (allow SKIP_VERSION_CHECK to bypass)
-      if [ -z "$SKIP_VERSION_CHECK" ] && ! version_gt "$current_version" "$prev_version"; then
+      if [ -z "${SKIP_VERSION_CHECK:-}" ] && ! version_gt "$current_version" "$prev_version"; then
         log_error "Ruby version must be greater than previous: $prev_version"
         log_error "Current version: $current_version"
         log_warning "To skip this check, set: SKIP_VERSION_CHECK=1"
