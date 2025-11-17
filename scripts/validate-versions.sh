@@ -56,14 +56,19 @@ validate_js_version() {
 
     # Check if version changed
     if [ "$current_version" != "$prev_version" ]; then
-      # Ensure new version is greater
-      if ! version_gt "$current_version" "$prev_version"; then
+      # Ensure new version is greater (allow SKIP_VERSION_CHECK to bypass)
+      if [ -z "$SKIP_VERSION_CHECK" ] && ! version_gt "$current_version" "$prev_version"; then
         log_error "JavaScript version must be greater than previous: $prev_version"
         log_error "Current version: $current_version"
+        log_warning "To skip this check, set: SKIP_VERSION_CHECK=1"
         return 1
       fi
 
-      log_success "JavaScript version bump valid: $prev_version → $current_version"
+      if version_gt "$current_version" "$prev_version"; then
+        log_success "JavaScript version bump valid: $prev_version → $current_version"
+      else
+        log_warning "JavaScript version changed: $prev_version → $current_version"
+      fi
 
       # Check if corresponding changeset exists
       if [ "$(count_changesets)" -eq 0 ]; then
@@ -93,18 +98,23 @@ validate_ruby_version() {
   # Get previous version from git
   if git rev-parse HEAD >/dev/null 2>&1; then
     local prev_version
-    prev_version=$(git show HEAD:packages/ruby/lib/nats_pubsub/version.rb 2>/dev/null | grep -oP "VERSION = '\K[^']+" || echo "0.0.0")
+    prev_version=$(git show HEAD:packages/ruby/lib/nats_pubsub/version.rb 2>/dev/null | sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" || echo "0.0.0")
 
     # Check if version changed
     if [ "$current_version" != "$prev_version" ]; then
-      # Ensure new version is greater
-      if ! version_gt "$current_version" "$prev_version"; then
+      # Ensure new version is greater (allow SKIP_VERSION_CHECK to bypass)
+      if [ -z "$SKIP_VERSION_CHECK" ] && ! version_gt "$current_version" "$prev_version"; then
         log_error "Ruby version must be greater than previous: $prev_version"
         log_error "Current version: $current_version"
+        log_warning "To skip this check, set: SKIP_VERSION_CHECK=1"
         return 1
       fi
 
-      log_success "Ruby version bump valid: $prev_version → $current_version"
+      if version_gt "$current_version" "$prev_version"; then
+        log_success "Ruby version bump valid: $prev_version → $current_version"
+      else
+        log_warning "Ruby version changed: $prev_version → $current_version"
+      fi
 
       # Check if CHANGELOG was updated
       if git diff --cached --name-only | grep -q "packages/ruby/CHANGELOG.md"; then

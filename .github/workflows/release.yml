@@ -17,8 +17,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    name: Prepare Release
+  # ============================================================================
+  # JavaScript Release (Changesets-based)
+  # ============================================================================
+
+  prepare-javascript:
+    name: Prepare JavaScript Release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     outputs:
@@ -40,18 +44,18 @@ jobs:
           CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l)
 
           if [ "$CHANGESET_COUNT" -gt 0 ]; then
-            echo "Found $CHANGESET_COUNT changeset file(s)"
+            echo "Found $CHANGESET_COUNT changeset file(s) for JavaScript"
             echo "has_changesets=true" >> $GITHUB_OUTPUT
           else
             echo "No changeset files found"
             echo "has_changesets=false" >> $GITHUB_OUTPUT
           fi
 
-  version-pr:
-    name: Create Version PR to Main
-    needs: prepare
+  version-pr-javascript:
+    name: Create JavaScript Version PR to Main
+    needs: prepare-javascript
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.has_changesets == 'true'
+    if: needs.prepare-javascript.outputs.has_changesets == 'true'
     permissions:
       contents: write
       pull-requests: write
@@ -70,23 +74,20 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm changeset:version
-          commit: "chore: version packages"
-          title: "chore: version packages"
+          commit: "chore(javascript): version packages"
+          title: "chore(javascript): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Detect which packages have version changes after version PR merge to main
-  detect-changes:
-    name: Detect Package Changes
+  detect-javascript-changes:
+    name: Detect JavaScript Version Changes
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     outputs:
-      js_version_changed: ${{ steps.check_js.outputs.version_changed }}
-      js_version: ${{ steps.check_js.outputs.version }}
-      ruby_version_changed: ${{ steps.check_ruby.outputs.version_changed }}
-      ruby_version: ${{ steps.check_ruby.outputs.version }}
+      version_changed: ${{ steps.check_version.outputs.version_changed }}
+      version: ${{ steps.check_version.outputs.version }}
       has_changesets: ${{ steps.check_changesets.outputs.has_changesets }}
 
     steps:
@@ -109,7 +110,7 @@ jobs:
           fi
 
       - name: Check JavaScript version changes
-        id: check_js
+        id: check_version
         run: |
           # Check if package.json was updated in the last commit
           if git diff HEAD~1 HEAD -- packages/javascript/package.json | grep -q '"version"'; then
@@ -129,36 +130,13 @@ jobs:
             echo "No JavaScript version change detected"
           fi
 
-      - name: Check Ruby version changes
-        id: check_ruby
-        run: |
-          # Check if version.rb was updated in the last commit
-          if git diff HEAD~1 HEAD -- packages/ruby/lib/nats_pubsub/version.rb | grep -q 'VERSION'; then
-            RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
-
-            # Check if this version tag already exists
-            if git tag | grep -q "^ruby-v${RUBY_VERSION}$"; then
-              echo "version_changed=false" >> $GITHUB_OUTPUT
-              echo "Ruby version $RUBY_VERSION already released"
-            else
-              echo "version_changed=true" >> $GITHUB_OUTPUT
-              echo "version=$RUBY_VERSION" >> $GITHUB_OUTPUT
-              echo "Ruby version changed to $RUBY_VERSION"
-            fi
-          else
-            echo "version_changed=false" >> $GITHUB_OUTPUT
-            echo "No Ruby version change detected"
-          fi
-
-  # Publish JavaScript package independently
   publish-javascript:
     name: Publish JavaScript Package
-    needs: detect-changes
+    needs: detect-javascript-changes
     runs-on: ubuntu-latest
-    # Only publish if version changed, no pending changesets, and not already released
     if: |
-      needs.detect-changes.outputs.js_version_changed == 'true' &&
-      needs.detect-changes.outputs.has_changesets == 'false'
+      needs.detect-javascript-changes.outputs.version_changed == 'true' &&
+      needs.detect-javascript-changes.outputs.has_changesets == 'false'
     permissions:
       contents: write
       id-token: write
@@ -184,12 +162,12 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "javascript-v${{ needs.detect-changes.outputs.js_version }}" -m "Release javascript-v${{ needs.detect-changes.outputs.js_version }}"
-          git push origin "javascript-v${{ needs.detect-changes.outputs.js_version }}"
+          git tag -a "javascript-v${{ needs.detect-javascript-changes.outputs.version }}" -m "Release javascript-v${{ needs.detect-javascript-changes.outputs.version }}"
+          git push origin "javascript-v${{ needs.detect-javascript-changes.outputs.version }}"
 
       - name: Create GitHub Release
         run: |
-          JS_VERSION="${{ needs.detect-changes.outputs.js_version }}"
+          JS_VERSION="${{ needs.detect-javascript-changes.outputs.version }}"
 
           gh release create "javascript-v$JS_VERSION" \
             --title "JavaScript v$JS_VERSION" \
@@ -209,18 +187,55 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Publish Ruby gem independently (runs in parallel with JavaScript)
+  # ============================================================================
+  # Ruby Release (Manual versioning)
+  # ============================================================================
+
+  detect-ruby-changes:
+    name: Detect Ruby Version Changes
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    outputs:
+      version_changed: ${{ steps.check_version.outputs.version_changed }}
+      version: ${{ steps.check_version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check Ruby version changes
+        id: check_version
+        run: |
+          # Check if version.rb was updated in the last commit
+          if git diff HEAD~1 HEAD -- packages/ruby/lib/nats_pubsub/version.rb | grep -q 'VERSION'; then
+            RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
+
+            # Check if this version tag already exists
+            if git tag | grep -q "^ruby-v${RUBY_VERSION}$"; then
+              echo "version_changed=false" >> $GITHUB_OUTPUT
+              echo "Ruby version $RUBY_VERSION already released"
+            else
+              echo "version_changed=true" >> $GITHUB_OUTPUT
+              echo "version=$RUBY_VERSION" >> $GITHUB_OUTPUT
+              echo "Ruby version changed to $RUBY_VERSION"
+            fi
+          else
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+            echo "No Ruby version change detected"
+          fi
+
   publish-ruby:
     name: Publish Ruby Package
-    needs: detect-changes
+    needs: detect-ruby-changes
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/ruby
-    # Only publish if version changed, no pending changesets, and not already released
-    if: |
-      needs.detect-changes.outputs.ruby_version_changed == 'true' &&
-      needs.detect-changes.outputs.has_changesets == 'false'
+    if: needs.detect-ruby-changes.outputs.version_changed == 'true'
     permissions:
       contents: write
       id-token: write
@@ -244,8 +259,8 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "ruby-v${{ needs.detect-changes.outputs.ruby_version }}" -m "Release ruby-v${{ needs.detect-changes.outputs.ruby_version }}"
-          git push origin "ruby-v${{ needs.detect-changes.outputs.ruby_version }}"
+          git tag -a "ruby-v${{ needs.detect-ruby-changes.outputs.version }}" -m "Release ruby-v${{ needs.detect-ruby-changes.outputs.version }}"
+          git push origin "ruby-v${{ needs.detect-ruby-changes.outputs.version }}"
 
       - name: Publish to RubyGems with OIDC
         uses: rubygems/release-gem@v1
@@ -253,7 +268,7 @@ jobs:
       - name: Create GitHub Release
         working-directory: .
         env:
-          RUBY_VERSION: ${{ needs.detect-changes.outputs.ruby_version }}
+          RUBY_VERSION: ${{ needs.detect-ruby-changes.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "ruby-v${RUBY_VERSION}" \
