@@ -190,7 +190,7 @@ export class HealthCheck {
    * ```
    */
   static middleware() {
-    return async (req: any, res: any) => {
+    return async (_req: any, res: any) => {
       try {
         const health = await this.check();
         const statusCode =
@@ -216,7 +216,7 @@ export class HealthCheck {
    * ```
    */
   static quickMiddleware() {
-    return async (req: any, res: any) => {
+    return async (_req: any, res: any) => {
       try {
         const result = await this.quickCheck();
         const statusCode = result.status === 'ok' ? 200 : 503;
