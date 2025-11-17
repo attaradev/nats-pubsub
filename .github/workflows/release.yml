@@ -572,7 +572,7 @@ jobs:
 
       - name: Notify release success
         if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ steps.packages.outputs.js_version }}';
@@ -776,7 +776,7 @@ jobs:
           generate_release_notes: true
 
       - name: Notify Ruby release success
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         with:
@@ -877,7 +877,7 @@ jobs:
           echo "   Run: npm deprecate nats-pubsub@$VERSION \"Rolled back due to issues\""
 
       - name: Create rollback issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ github.event.inputs.rollback_version }}';
