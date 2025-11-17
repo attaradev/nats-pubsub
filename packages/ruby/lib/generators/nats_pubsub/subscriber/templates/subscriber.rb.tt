@@ -1,0 +1,117 @@
+# frozen_string_literal: true
+
+# <%= subscriber_class_name %> handles messages from NATS topics
+#
+# This subscriber listens to the following topic(s):
+<% all_topics.each do |topic| -%>
+#   - <%= topic %><%= use_wildcard? ? '.>' : '' %>
+<% end -%>
+#
+# Message format:
+#   {
+#     "event_id": "uuid",
+#     "domain": "domain_name",
+#     "resource": "resource_name",
+#     "action": "action_name",
+#     "data": { ... }
+#   }
+#
+# Context includes:
+#   - event_id: Unique event identifier
+#   - trace_id: Distributed tracing ID
+#   - deliveries: Number of delivery attempts
+#   - topic: The topic this message was published to
+#   - subject: Full NATS subject (env.app.domain.resource.action)
+class <%= subscriber_class_name %>
+  include NatsPubsub::Subscriber
+
+  # Subscribe to topics
+<%= subscription_code %>
+
+  # Configure JetStream options (optional)
+  # jetstream_options retry: 5, ack_wait: 30, max_deliver: 5
+
+  # Handle incoming messages
+  #
+  # @param message [Hash] The message payload
+  # @param context [NatsPubsub::Core::MessageContext] Message context
+  # @return [void]
+  #
+  # @example
+  #   {
+  #     "event_id" => "uuid",
+  #     "domain" => "<%= example_topic.split('.').first %>",
+  #     "resource" => "<%= example_topic.split('.')[1] || 'resource' %>",
+  #     "action" => "created",
+  #     "data" => { "id" => 1, "name" => "Example" }
+  #   }
+  def handle(message, context)
+    logger.info "Processing message: event_id=#{context.event_id} topic=#{context.topic}"
+
+    # Extract data from message
+    data = message['data'] || message
+    event_id = message['event_id']
+    action = message['action']
+
+    # TODO: Implement your message processing logic here
+    # Example:
+    # case action
+    # when 'created'
+    #   handle_created(data, context)
+    # when 'updated'
+    #   handle_updated(data, context)
+    # when 'deleted'
+    #   handle_deleted(data, context)
+    # else
+    #   logger.warn "Unknown action: #{action}"
+    # end
+
+    logger.info "Successfully processed: event_id=#{context.event_id}"
+  rescue StandardError => e
+    logger.error "Failed to process message: #{e.class}: #{e.message}"
+    logger.error e.backtrace.join("\n")
+    raise # Re-raise to trigger retry/DLQ logic
+  end
+
+  # Optional: Custom error handling
+  #
+  # Return an error action to control how errors are handled:
+  #   - NatsPubsub::Core::ErrorAction::RETRY   - Retry the message (default)
+  #   - NatsPubsub::Core::ErrorAction::DISCARD - Discard the message
+  #   - NatsPubsub::Core::ErrorAction::DLQ     - Send to dead letter queue
+  #
+  # @param error_context [NatsPubsub::Core::ErrorContext] Error context
+  # @return [Symbol] Error action
+  #
+  # @example
+  #   def on_error(error_context)
+  #     case error_context.error
+  #     when ActiveRecord::RecordNotFound
+  #       NatsPubsub::Core::ErrorAction::DISCARD
+  #     when Timeout::Error
+  #       NatsPubsub::Core::ErrorAction::RETRY
+  #     else
+  #       NatsPubsub::Core::ErrorAction::DLQ
+  #     end
+  #   end
+  # def on_error(error_context)
+  #   super
+  # end
+
+  private
+
+  # Example helper methods for different actions
+  # Uncomment and implement as needed
+
+  # def handle_created(data, context)
+  #   # Handle created events
+  # end
+
+  # def handle_updated(data, context)
+  #   # Handle updated events
+  # end
+
+  # def handle_deleted(data, context)
+  #   # Handle deleted events
+  # end
+end

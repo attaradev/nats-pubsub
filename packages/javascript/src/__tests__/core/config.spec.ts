@@ -1,4 +1,4 @@
-import Config from '../../core/config';
+import Config, { ConfigurationError } from '../../core/config';
 
 describe('Config', () => {
   // Reset config between tests by clearing its configuration
@@ -304,6 +304,348 @@ describe('Config', () => {
         }
 
         process.env.NODE_ENV = originalEnv;
+      });
+    });
+  });
+
+  describe('validation', () => {
+    describe('validateRequiredFields', () => {
+      it('should throw ConfigurationError when appName is blank', () => {
+        expect(() => {
+          Config.configure({ appName: '' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ appName: '' });
+        }).toThrow('appName cannot be blank');
+      });
+
+      it('should throw ConfigurationError when appName is only whitespace', () => {
+        expect(() => {
+          Config.configure({ appName: '   ' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ appName: '   ' });
+        }).toThrow('appName cannot be blank');
+      });
+
+      it('should throw ConfigurationError when env is blank', () => {
+        expect(() => {
+          Config.configure({ env: '' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ env: '' });
+        }).toThrow('env cannot be blank');
+      });
+
+      it('should throw ConfigurationError when env is only whitespace', () => {
+        expect(() => {
+          Config.configure({ env: '   ' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ env: '   ' });
+        }).toThrow('env cannot be blank');
+      });
+
+      it('should throw ConfigurationError when natsUrls is empty string', () => {
+        expect(() => {
+          Config.configure({ natsUrls: '' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ natsUrls: '' });
+        }).toThrow('natsUrls cannot be empty');
+      });
+
+      it('should throw ConfigurationError when natsUrls is empty array', () => {
+        expect(() => {
+          Config.configure({ natsUrls: [] });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ natsUrls: [] });
+        }).toThrow('natsUrls cannot be empty');
+      });
+
+      it('should accept valid appName', () => {
+        expect(() => {
+          Config.configure({ appName: 'my-app' });
+        }).not.toThrow();
+      });
+
+      it('should accept valid env', () => {
+        expect(() => {
+          Config.configure({ env: 'production' });
+        }).not.toThrow();
+      });
+
+      it('should accept valid natsUrls string', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'nats://localhost:4222' });
+        }).not.toThrow();
+      });
+
+      it('should accept valid natsUrls array', () => {
+        expect(() => {
+          Config.configure({ natsUrls: ['nats://server1:4222', 'nats://server2:4222'] });
+        }).not.toThrow();
+      });
+    });
+
+    describe('validateNumericRanges', () => {
+      it('should throw ConfigurationError when concurrency is zero', () => {
+        expect(() => {
+          Config.configure({ concurrency: 0 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ concurrency: 0 });
+        }).toThrow('concurrency must be positive');
+      });
+
+      it('should throw ConfigurationError when concurrency is negative', () => {
+        expect(() => {
+          Config.configure({ concurrency: -1 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ concurrency: -1 });
+        }).toThrow('concurrency must be positive');
+      });
+
+      it('should throw ConfigurationError when maxDeliver is zero', () => {
+        expect(() => {
+          Config.configure({ maxDeliver: 0 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ maxDeliver: 0 });
+        }).toThrow('maxDeliver must be positive');
+      });
+
+      it('should throw ConfigurationError when maxDeliver is negative', () => {
+        expect(() => {
+          Config.configure({ maxDeliver: -5 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ maxDeliver: -5 });
+        }).toThrow('maxDeliver must be positive');
+      });
+
+      it('should throw ConfigurationError when dlqMaxAttempts is zero', () => {
+        expect(() => {
+          Config.configure({ dlqMaxAttempts: 0 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ dlqMaxAttempts: 0 });
+        }).toThrow('dlqMaxAttempts must be positive');
+      });
+
+      it('should throw ConfigurationError when dlqMaxAttempts is negative', () => {
+        expect(() => {
+          Config.configure({ dlqMaxAttempts: -3 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ dlqMaxAttempts: -3 });
+        }).toThrow('dlqMaxAttempts must be positive');
+      });
+
+      it('should throw ConfigurationError when ackWait is zero', () => {
+        expect(() => {
+          Config.configure({ ackWait: 0 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ ackWait: 0 });
+        }).toThrow('ackWait must be positive');
+      });
+
+      it('should throw ConfigurationError when ackWait is negative', () => {
+        expect(() => {
+          Config.configure({ ackWait: -30000 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ ackWait: -30000 });
+        }).toThrow('ackWait must be positive');
+      });
+
+      it('should throw ConfigurationError when perMessageConcurrency is zero', () => {
+        expect(() => {
+          Config.configure({ perMessageConcurrency: 0 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ perMessageConcurrency: 0 });
+        }).toThrow('perMessageConcurrency must be positive');
+      });
+
+      it('should throw ConfigurationError when perMessageConcurrency is negative', () => {
+        expect(() => {
+          Config.configure({ perMessageConcurrency: -2 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ perMessageConcurrency: -2 });
+        }).toThrow('perMessageConcurrency must be positive');
+      });
+
+      it('should throw ConfigurationError when subscriberTimeoutMs is negative', () => {
+        expect(() => {
+          Config.configure({ subscriberTimeoutMs: -1000 });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ subscriberTimeoutMs: -1000 });
+        }).toThrow('subscriberTimeoutMs must be non-negative');
+      });
+
+      it('should accept zero for subscriberTimeoutMs (no timeout)', () => {
+        expect(() => {
+          Config.configure({ subscriberTimeoutMs: 0 });
+        }).not.toThrow();
+      });
+
+      it('should throw ConfigurationError when backoff is not an array', () => {
+        expect(() => {
+          Config.configure({ backoff: 'invalid' as any });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ backoff: 'invalid' as any });
+        }).toThrow('backoff must be an array');
+      });
+
+      it('should throw ConfigurationError when backoff contains zero', () => {
+        expect(() => {
+          Config.configure({ backoff: [1000, 0, 5000] });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ backoff: [1000, 0, 5000] });
+        }).toThrow('backoff values must be positive');
+      });
+
+      it('should throw ConfigurationError when backoff contains negative values', () => {
+        expect(() => {
+          Config.configure({ backoff: [1000, -5000, 15000] });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ backoff: [1000, -5000, 15000] });
+        }).toThrow('backoff values must be positive');
+      });
+
+      it('should accept valid positive numeric values', () => {
+        expect(() => {
+          Config.configure({
+            concurrency: 20,
+            maxDeliver: 10,
+            dlqMaxAttempts: 5,
+            ackWait: 60000,
+            perMessageConcurrency: 3,
+            subscriberTimeoutMs: 45000,
+            backoff: [2000, 4000, 8000],
+          });
+        }).not.toThrow();
+      });
+    });
+
+    describe('validateUrls', () => {
+      it('should throw ConfigurationError for URL without nats:// protocol', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'localhost:4222' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ natsUrls: 'localhost:4222' });
+        }).toThrow('Invalid NATS URL: localhost:4222');
+      });
+
+      it('should throw ConfigurationError for http:// URL', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'http://localhost:4222' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ natsUrls: 'http://localhost:4222' });
+        }).toThrow('Invalid NATS URL: http://localhost:4222');
+      });
+
+      it('should throw ConfigurationError for https:// URL', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'https://localhost:4222' });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({ natsUrls: 'https://localhost:4222' });
+        }).toThrow('Invalid NATS URL: https://localhost:4222');
+      });
+
+      it('should throw ConfigurationError for invalid URL in array', () => {
+        expect(() => {
+          Config.configure({
+            natsUrls: ['nats://server1:4222', 'http://server2:4222', 'nats://server3:4222'],
+          });
+        }).toThrow(ConfigurationError);
+        expect(() => {
+          Config.configure({
+            natsUrls: ['nats://server1:4222', 'http://server2:4222', 'nats://server3:4222'],
+          });
+        }).toThrow('Invalid NATS URL: http://server2:4222');
+      });
+
+      it('should accept valid nats:// URL', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'nats://localhost:4222' });
+        }).not.toThrow();
+      });
+
+      it('should accept valid NATS:// URL (case insensitive)', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'NATS://localhost:4222' });
+        }).not.toThrow();
+      });
+
+      it('should accept valid nats:// URL with username and password', () => {
+        expect(() => {
+          Config.configure({ natsUrls: 'nats://user:pass@localhost:4222' });
+        }).not.toThrow();
+      });
+
+      it('should accept multiple valid nats:// URLs', () => {
+        expect(() => {
+          Config.configure({
+            natsUrls: ['nats://server1:4222', 'nats://server2:4222', 'nats://server3:4222'],
+          });
+        }).not.toThrow();
+      });
+    });
+
+    describe('validate method', () => {
+      it('should be callable directly', () => {
+        expect(() => {
+          Config.validate();
+        }).not.toThrow();
+      });
+
+      it('should throw when called after invalid configuration', () => {
+        // First configure with valid config
+        Config.configure({ appName: 'valid-app' });
+
+        // Manually set invalid config (bypassing validation for test)
+        const cfg: any = Config.get();
+        cfg.appName = '';
+
+        // Now validate should throw
+        expect(() => {
+          Config.validate();
+        }).toThrow(ConfigurationError);
+      });
+    });
+
+    describe('ConfigurationError', () => {
+      it('should be an instance of Error', () => {
+        const error = new ConfigurationError('test error');
+        expect(error).toBeInstanceOf(Error);
+      });
+
+      it('should have correct name', () => {
+        const error = new ConfigurationError('test error');
+        expect(error.name).toBe('ConfigurationError');
+      });
+
+      it('should have correct message', () => {
+        const error = new ConfigurationError('test error message');
+        expect(error.message).toBe('test error message');
+      });
+
+      it('should maintain prototype chain', () => {
+        const error = new ConfigurationError('test error');
+        expect(error instanceof ConfigurationError).toBe(true);
       });
     });
   });

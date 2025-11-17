@@ -1,4 +1,10 @@
-# NatsPubsub (Node.js/TypeScript)
+# NatsPubsub ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+
+[![npm version](https://img.shields.io/npm/v/nats-pubsub.svg)](https://www.npmjs.com/package/nats-pubsub)
+[![npm downloads](https://img.shields.io/npm/dm/nats-pubsub.svg)](https://www.npmjs.com/package/nats-pubsub)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
 **Declarative PubSub messaging for NATS JetStream**
 
@@ -6,8 +12,53 @@ A production-ready pub/sub library for Node.js/TypeScript with declarative subsc
 
 This is the Node.js/TypeScript implementation of NatsPubsub. For the Ruby version, see [../ruby](../ruby).
 
+## 🚀 Quick Start (< 5 minutes)
+
+```typescript
+// 1. Install
+// pnpm add nats-pubsub
+
+// 2. Start NATS Server (in terminal)
+// docker run -d -p 4222:4222 nats:latest -js
+
+// 3. Configure and Publish
+import NatsPubsub from 'nats-pubsub';
+
+NatsPubsub.configure({
+  natsUrls: 'nats://localhost:4222',
+  appName: 'my-app',
+  env: 'development',
+});
+
+await NatsPubsub.publish('notification.email', {
+  to: 'user@example.com',
+  subject: 'Welcome!',
+});
+
+// 4. Create a Subscriber
+import { Subscriber, TopicMetadata } from 'nats-pubsub';
+
+class EmailSubscriber extends Subscriber<Record<string, unknown>, TopicMetadata> {
+  constructor() {
+    super('development.my-app.notification.email');
+  }
+
+  async handle(message: Record<string, unknown>, metadata: TopicMetadata): Promise<void> {
+    console.log('Sending email:', message);
+    // Your logic here
+  }
+}
+
+// 5. Start Processing
+NatsPubsub.registerSubscriber(new EmailSubscriber());
+await NatsPubsub.start();
+```
+
+That's it! You're now publishing and consuming messages with NATS JetStream.
+
 ## Table of Contents
 
+- [Quick Start](#-quick-start---5-minutes)
 - [Features](#-features)
 - [Installation](#-install)
 - [Prerequisites](#prerequisites)
@@ -18,6 +69,7 @@ This is the Node.js/TypeScript implementation of NatsPubsub. For the Ruby versio
 - [Publishing Events](#-publish-events)
 - [Running Subscribers](#-run-subscribers)
 - [Middleware](#-middleware)
+- [CLI Tool](#%EF%B8%8F-cli-tool)
 - [Testing](#-testing)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
@@ -27,14 +79,17 @@ This is the Node.js/TypeScript implementation of NatsPubsub. For the Ruby versio
 
 ## ✨ Features
 
-- 🎯 **Declarative API** - Familiar pattern for defining subscribers
-- 🔌 **Simple Publishing** - `NatsPubsub.publish(domain, resource, action, payload)`
-- 🧨 **DLQ** for poison messages
-- ⚙️ Durable `pull_subscribe` with backoff & `max_deliver`
-- 🎭 **Middleware system** - Extensible processing pipeline
-- 🚀 **TypeScript first** - Full type safety and IntelliSense support
-- 🧱 **Overlap-safe stream provisioning** - Prevents "subjects overlap" errors
-- 📊 Configurable logging with sensible defaults
+- 🎯 **Topic-Based Messaging** - Simple, hierarchical topic pattern (e.g., `order.created`, `user.updated`)
+- 🔌 **Declarative Subscribers** - Clean class-based subscription API with TypeScript support
+- 🌲 **Wildcard Subscriptions** - Support for `*` (single level) and `>` (multi-level) wildcards
+- 🧨 **Dead Letter Queue** - Automatic handling of failed messages after max retries
+- ⚙️ **Durable Pull Consumers** - Reliable message delivery with exponential backoff
+- 🎭 **Middleware System** - Extensible processing pipeline for cross-cutting concerns
+- 🚀 **TypeScript First** - Full type safety, generics, and IntelliSense support
+- 📦 **Batch Publishing** - Efficient multi-message publishing with fluent API
+- 🧱 **Auto-Topology Management** - Automatic JetStream stream creation, prevents overlap errors
+- 📊 **Structured Logging** - Configurable logging with sensible defaults
+- ❤️ **Health Checks** - Built-in health check endpoints for Kubernetes/Docker
 
 ---
 
@@ -50,7 +105,7 @@ yarn add nats-pubsub
 
 ### Prerequisites
 
-- Node.js 24+
+- Node.js 20+
 - NATS Server with JetStream enabled
 - pnpm 10+ (recommended) or npm/yarn
 
@@ -120,83 +175,191 @@ cp .env.example .env
 
 ## 📡 Subject Pattern
 
-NatsPubsub uses a PubSub event pattern:
+NatsPubsub uses a **topic-based subject pattern**:
 
 ```md
-{env}.events.{domain}.{resource}.{action}
+{env}.{appName}.{topic}
 ```
+
+**Components:**
+
+- `env` - Environment (production, staging, development) for isolation
+- `appName` - Your application/service name for multi-service communication
+- `topic` - Hierarchical topic using dot notation (e.g., `order.created`, `user.updated`)
 
 **Examples:**
 
-- `production.events.users.user.created`
-- `production.events.orders.order.placed`
-- `staging.events.payments.payment.completed`
+- `production.myapp.order.created`
+- `production.myapp.user.updated`
+- `staging.payments-service.payment.completed`
+- `development.shop.notification.email`
+
+**Wildcard Support:**
+
+- `*` - Matches exactly one token: `production.myapp.user.*` matches `user.created`, `user.updated`
+- `>` - Matches one or more tokens: `production.myapp.order.>` matches all order-related topics
+
+**DLQ Subject:**
+
+Failed messages are automatically routed to:
+
+```md
+{env}.dlq
+```
 
 ---
 
 ## 🎯 Declarative Subscribers
 
-### Using Class-based Approach
+### Basic Subscriber
 
 ```typescript
-import { BaseSubscriber, EventMetadata } from 'nats-pubsub';
+import { Subscriber, TopicMetadata } from 'nats-pubsub';
 
-class UserActivitySubscriber extends BaseSubscriber {
+class OrderCreatedSubscriber extends Subscriber {
   constructor() {
-    super('production.events.users.user.*', {
+    super('production.myapp.order.created', {
+      retry: 3,
+      ackWait: 60000,
+      maxDeliver: 5,
+    });
+  }
+
+  async handle(message: Record<string, unknown>, metadata: TopicMetadata): Promise<void> {
+    // metadata provides: event_id, trace_id, topic, occurred_at, deliveries
+    console.log(`Processing order: ${message.order_id}`);
+
+    // Your idempotent domain logic here
+    await OrderProcessor.process(message);
+  }
+}
+
+// Register the subscriber
+const subscriber = new OrderCreatedSubscriber();
+NatsPubsub.registerSubscriber(subscriber);
+```
+
+### Subscriber Options
+
+All available options for subscribers:
+
+```typescript
+class MySubscriber extends Subscriber {
+  constructor() {
+    super('production.myapp.topic', {
+      // Retry configuration
+      retry: 3, // Number of retry attempts (simple)
+      maxDeliver: 5, // Maximum delivery attempts before DLQ
+      ackWait: 30000, // Ack timeout in milliseconds
+
+      // Advanced retry strategy
+      retryStrategy: {
+        maxAttempts: 3,
+        backoff: 'exponential', // 'exponential' | 'linear' | 'fixed'
+        initialDelay: 1000, // Initial delay in ms
+        maxDelay: 60000, // Max delay in ms
+        multiplier: 2, // Backoff multiplier
+      },
+
+      // Circuit breaker (fault tolerance)
+      circuitBreaker: {
+        enabled: true,
+        threshold: 5, // Failures before opening
+        timeout: 60000, // Time before half-open
+        halfOpenMaxCalls: 3, // Max calls in half-open state
+      },
+
+      // Dead letter queue
+      deadLetter: {
+        enabled: true,
+        maxAttempts: 5,
+        subject: 'custom.dlq', // Custom DLQ subject
+      },
+      // Or simply: deadLetter: true
+
+      // Schema validation (Zod)
+      schema: z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+    });
+  }
+
+  async handle(message: Record<string, unknown>, metadata: TopicMetadata): Promise<void> {
+    // Process message
+  }
+}
+```
+
+### Wildcard Subscriptions
+
+```typescript
+import { Subscriber, TopicMetadata } from 'nats-pubsub';
+
+// Subscribe to all user-related topics
+class UserActivitySubscriber extends Subscriber {
+  constructor() {
+    super('production.myapp.user.*', {
       retry: 3,
       ackWait: 60000,
     });
   }
 
-  async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
-    console.log(`User ${metadata.action}: ${event.name}`);
-    // Your idempotent domain logic here
-  }
-}
+  async handle(message: Record<string, unknown>, metadata: TopicMetadata): Promise<void> {
+    console.log(`User activity: ${metadata.topic}`);
 
-// Register the subscriber
-const subscriber = new UserActivitySubscriber();
-NatsPubsub.registerSubscriber(subscriber);
-```
-
-### Using Decorator (experimental)
-
-```typescript
-import { subscriber, EventMetadata } from 'nats-pubsub';
-
-@subscriber('production.events.users.user.*', { retry: 3 })
-class UserActivitySubscriber {
-  async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
-    console.log(`User ${metadata.action}: ${event.name}`);
-  }
-}
-```
-
-### Multiple Subjects
-
-```typescript
-class EmailNotificationSubscriber extends BaseSubscriber {
-  constructor() {
-    super([
-      'production.events.users.user.created',
-      'production.events.orders.order.placed'
-    ]);
-  }
-
-  async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
-    if (metadata.subject.includes('users.user.created')) {
-      await this.sendWelcomeEmail(event);
-    } else if (metadata.subject.includes('orders.order.placed')) {
-      await this.sendOrderConfirmation(event);
+    switch (metadata.topic) {
+      case 'user.created':
+        await this.handleUserCreated(message);
+        break;
+      case 'user.updated':
+        await this.handleUserUpdated(message);
+        break;
+      case 'user.deleted':
+        await this.handleUserDeleted(message);
+        break;
     }
   }
 
-  private async sendWelcomeEmail(event: Record<string, unknown>): Promise<void> {
+  private async handleUserCreated(message: Record<string, unknown>): Promise<void> {
     // Implementation
   }
 
-  private async sendOrderConfirmation(event: Record<string, unknown>): Promise<void> {
+  private async handleUserUpdated(message: Record<string, unknown>): Promise<void> {
+    // Implementation
+  }
+
+  private async handleUserDeleted(message: Record<string, unknown>): Promise<void> {
+    // Implementation
+  }
+}
+```
+
+### With TypeScript Generics
+
+```typescript
+interface OrderCreatedMessage {
+  order_id: string;
+  customer_id: string;
+  total: number;
+  item: Array<{ product_id: string; quantity: number }>;
+}
+
+class OrderCreatedSubscriber extends Subscriber<OrderCreatedMessage> {
+  constructor() {
+    super('production.myapp.order.created');
+  }
+
+  async handle(message: OrderCreatedMessage, metadata: TopicMetadata): Promise<void> {
+    // message is fully typed!
+    console.log(`Order ${message.order_id} total: $${message.total}`);
+
+    for (const item of message.item) {
+      await this.reserveInventory(item.product_id, item.quantity);
+    }
+  }
+
+  private async reserveInventory(productId: string, quantity: number): Promise<void> {
     // Implementation
   }
 }
@@ -206,32 +369,77 @@ class EmailNotificationSubscriber extends BaseSubscriber {
 
 ## 📤 Publish Events
 
-### Simple API
+### Basic Publishing
 
 ```typescript
 import NatsPubsub from 'nats-pubsub';
 
-await NatsPubsub.publish('users', 'user', 'created', {
-  id: user.id,
-  name: user.name,
-  email: user.email,
+// Publish to a single topic
+await NatsPubsub.publish('order.created', {
+  order_id: 'ORD-123',
+  customer_id: 'CUST-456',
+  total: 99.99,
+  item: [{ product_id: 'PROD-1', quantity: 2 }],
+});
+
+// Alternative syntax
+await NatsPubsub.publish({
+  topic: 'order.created',
+  message: {
+    order_id: 'ORD-123',
+    customer_id: 'CUST-456',
+    total: 99.99,
+  },
+});
+```
+
+### Multi-Topic Publishing
+
+```typescript
+// Publish to multiple topics at once (fan-out)
+await NatsPubsub.publish({
+  topics: ['order.created', 'notification.email', 'audit.order'],
+  message: {
+    order_id: 'ORD-123',
+    customer_id: 'CUST-456',
+    total: 99.99,
+  },
 });
 ```
 
 ### With Options
 
 ```typescript
+// Add metadata like trace_id, event_id, etc.
 await NatsPubsub.publish(
-  'users',
-  'user',
-  'created',
-  { id: user.id, name: user.name },
+  'order.created',
   {
-    event_id: 'uuid-or-ulid',
-    trace_id: 'hex',
+    order_id: 'ORD-123',
+    customer_id: 'CUST-456',
+    total: 99.99,
+  },
+  {
+    trace_id: 'trace-123',
+    event_id: 'evt-456',
     occurred_at: new Date(),
+    message_type: 'OrderCreated',
   }
 );
+```
+
+### Batch Publishing
+
+```typescript
+// Efficient batch publishing with fluent API
+const batch = NatsPubsub.batch();
+
+await batch
+  .add('order.created', { order_id: 'ORD-1', total: 10.0 })
+  .add('order.created', { order_id: 'ORD-2', total: 20.0 })
+  .add('order.created', { order_id: 'ORD-3', total: 30.0 })
+  .publish();
+
+console.log(`Published ${batch.count()} messages`);
 ```
 
 ---
@@ -242,7 +450,9 @@ await NatsPubsub.publish(
 import NatsPubsub, { loggingMiddleware, retryLoggerMiddleware } from 'nats-pubsub';
 
 // Configure
-NatsPubsub.configure({ /* ... */ });
+NatsPubsub.configure({
+  /* ... */
+});
 
 // Add middleware
 NatsPubsub.use(loggingMiddleware);
@@ -294,13 +504,16 @@ NatsPubsub.use(new CustomMiddleware());
 {
   "event_id": "01H1234567890ABCDEF",
   "schema_version": 1,
-  "event_type": "created",
+  "topic": "user.created",
+  "message_type": "UserCreated",
   "producer": "myapp",
-  "resource_type": "user",
-  "resource_id": "01H1234567890ABCDEF",
   "occurred_at": "2025-08-13T21:00:00Z",
   "trace_id": "abc123",
-  "payload": { "id": "01H...", "name": "Ada" }
+  "message": {
+    "id": "01H1234567890ABCDEF",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com"
+  }
 }
 ```
 
@@ -309,7 +522,110 @@ NatsPubsub.use(new CustomMiddleware());
 ## 🧨 Dead-Letter Queue (DLQ)
 
 When enabled, messages that exceed `maxDeliver` are moved to the DLQ subject:
-**`{env}.events.dlq`**
+**`{env}.{appName}.dlq`**
+
+---
+
+## 🛠️ CLI Tool
+
+NatsPubsub includes a CLI tool for managing subscribers and streams.
+
+### Start Subscribers
+
+Start the consumer to process messages:
+
+```bash
+npx nats-pubsub start --env production --app my-app --url nats://localhost:4222
+```
+
+**Options:**
+
+- `-e, --env <env>` - Environment (default: development)
+- `-a, --app <name>` - Application name (default: app)
+- `-u, --url <url>` - NATS server URL (default: nats://localhost:4222)
+- `-c, --concurrency <number>` - Message concurrency (default: 10)
+
+### Check Health
+
+Verify NATS connection and JetStream availability:
+
+```bash
+npx nats-pubsub health --url nats://localhost:4222
+```
+
+Output:
+
+```
+✓ Connected to NATS
+  Server: nats://localhost:4222
+  Status: open
+✓ JetStream available
+  Streams: 3
+  Consumers: 5
+  Memory: 0 bytes
+  Storage: 1024 bytes
+
+Health check passed ✓
+```
+
+### Show Configuration & Stream Info
+
+Display current configuration and stream information:
+
+```bash
+npx nats-pubsub info --env production --app my-app --url nats://localhost:4222
+```
+
+Output:
+
+```
+=== NatsPubsub Configuration ===
+Environment: production
+App Name: my-app
+NATS URLs: nats://localhost:4222
+Stream Name: production-events-stream
+DLQ Subject: production.my-app.dlq
+Concurrency: 10
+Max Deliver: 5
+Use DLQ: true
+
+=== Stream Information ===
+Stream: production-events-stream
+Subjects: production.my-app.>
+Messages: 1234
+Bytes: 567890
+First Seq: 1
+Last Seq: 1234
+Consumers: 3
+```
+
+### Purge Stream
+
+Delete all messages from a stream:
+
+```bash
+# Purge main stream (requires --force)
+npx nats-pubsub purge --env production --app my-app --force
+
+# Purge DLQ stream
+npx nats-pubsub purge --env production --app my-app --dlq --force
+```
+
+⚠️ **Warning**: This permanently deletes all messages!
+
+### Delete Stream
+
+Completely remove a stream:
+
+```bash
+# Delete main stream (requires --force)
+npx nats-pubsub delete --env production --app my-app --force
+
+# Delete DLQ stream
+npx nats-pubsub delete --env production --app my-app --dlq --force
+```
+
+⚠️ **Warning**: This permanently deletes the stream and all its data!
 
 ---
 
@@ -347,17 +663,74 @@ import NatsPubsub from 'nats-pubsub';
 const app = express();
 app.use(express.json());
 
-app.post('/users', async (req, res) => {
-  const user = await createUser(req.body);
+// POST /api/v1/users
+app.post('/api/v1/users', async (req, res) => {
+  try {
+    const user = await createUser(req.body);
 
-  // Publish event
-  await NatsPubsub.publish('users', 'user', 'created', {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-  });
+    // Publish event
+    await NatsPubsub.publish('user.created', {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    });
 
-  res.json(user);
+    res.status(201).location(`/api/v1/users/${user.id}`).json(user);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// GET /api/v1/users/:id
+app.get('/api/v1/users/:id', async (req, res) => {
+  try {
+    const user = await findUser(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH /api/v1/users/:id
+app.patch('/api/v1/users/:id', async (req, res) => {
+  try {
+    const user = await updateUser(req.params.id, req.body);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await NatsPubsub.publish('user.updated', {
+      id: user.id,
+      changes: req.body,
+    });
+
+    res.json(user);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// DELETE /api/v1/users/:id
+app.delete('/api/v1/users/:id', async (req, res) => {
+  try {
+    const deleted = await deleteUser(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await NatsPubsub.publish('user.deleted', {
+      id: req.params.id,
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(3000);
@@ -546,7 +919,7 @@ NatsPubsub.configure({
 For high-throughput scenarios, consider batching:
 
 ```typescript
-class BatchProcessor extends BaseSubscriber {
+class BatchProcessor extends Subscriber {
   private batch: any[] = [];
   private batchSize = 100;
 

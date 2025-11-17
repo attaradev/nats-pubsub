@@ -1,10 +1,10 @@
 import {
   topicSubscriber,
   topicSubscriberWildcard,
-  BaseTopicSubscriber,
+  Subscriber,
   TopicMetadata,
-} from '../topic-subscriber';
-import { Subscriber } from '../types';
+} from '../subscribers/subscriber';
+import { Subscriber as SubscriberInterface } from '../types';
 import config from '../core/config';
 
 describe('Topic Subscriber', () => {
@@ -19,36 +19,36 @@ describe('Topic Subscriber', () => {
     it('should create subscriber for single topic', () => {
       @topicSubscriber('notifications')
       class NotificationSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process notification
         }
       }
 
-      const subscriber = new NotificationSubscriber() as unknown as Subscriber;
+      const subscriber = new NotificationSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.notifications']);
     });
 
     it('should create subscriber for hierarchical topic', () => {
       @topicSubscriber('notifications.email')
       class EmailNotificationSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process email notification
         }
       }
 
-      const subscriber = new EmailNotificationSubscriber() as unknown as Subscriber;
+      const subscriber = new EmailNotificationSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.notifications.email']);
     });
 
     it('should create subscriber for multiple topics', () => {
       @topicSubscriber(['notifications', 'audit.events'])
       class MultiTopicSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process multiple topics
         }
       }
 
-      const subscriber = new MultiTopicSubscriber() as unknown as Subscriber;
+      const subscriber = new MultiTopicSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual([
         'test.test-app.notifications',
         'test.test-app.audit.events',
@@ -58,48 +58,48 @@ describe('Topic Subscriber', () => {
     it('should handle topic with wildcard', () => {
       @topicSubscriber('notifications.*')
       class WildcardSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process wildcard topics
         }
       }
 
-      const subscriber = new WildcardSubscriber() as unknown as Subscriber;
+      const subscriber = new WildcardSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.notifications.*']);
     });
 
     it('should normalize topic names', () => {
       @topicSubscriber('USER@EVENTS!')
       class NormalizedSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process normalized topic
         }
       }
 
-      const subscriber = new NormalizedSubscriber() as unknown as Subscriber;
+      const subscriber = new NormalizedSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.user_events_']);
     });
 
     it('should preserve dots in hierarchical topics', () => {
       @topicSubscriber('analytics.user.signup')
       class AnalyticsSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process analytics event
         }
       }
 
-      const subscriber = new AnalyticsSubscriber() as unknown as Subscriber;
+      const subscriber = new AnalyticsSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.analytics.user.signup']);
     });
 
     it('should pass through subscription options', () => {
       @topicSubscriber('notifications', { ackWait: 60000 })
       class OptionsSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process with options
         }
       }
 
-      const subscriber = new OptionsSubscriber() as unknown as Subscriber;
+      const subscriber = new OptionsSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.options).toEqual({ ackWait: 60000 });
     });
   });
@@ -108,48 +108,48 @@ describe('Topic Subscriber', () => {
     it('should create subscriber with wildcard pattern', () => {
       @topicSubscriberWildcard('notifications')
       class AllNotificationsSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process all notifications
         }
       }
 
-      const subscriber = new AllNotificationsSubscriber() as unknown as Subscriber;
+      const subscriber = new AllNotificationsSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.notifications.>']);
     });
 
     it('should create subscriber for nested wildcard', () => {
       @topicSubscriberWildcard('order.processing')
       class OrderProcessingSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process order events
         }
       }
 
-      const subscriber = new OrderProcessingSubscriber() as unknown as Subscriber;
+      const subscriber = new OrderProcessingSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['test.test-app.order.processing.>']);
     });
 
     it('should pass through subscription options', () => {
       @topicSubscriberWildcard('notifications', { ackWait: 60000 })
       class WildcardOptionsSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process with options
         }
       }
 
-      const subscriber = new WildcardOptionsSubscriber() as unknown as Subscriber;
+      const subscriber = new WildcardOptionsSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.options).toEqual({ ackWait: 60000 });
     });
   });
 
-  describe('BaseTopicSubscriber', () => {
+  describe('Subscriber', () => {
     it('should initialize with subject', () => {
-      class TestSubscriber extends BaseTopicSubscriber {
+      class TestSubscriber extends Subscriber {
         constructor() {
           super('test.test-app.notifications');
         }
 
-        async call(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
           // Test implementation
         }
       }
@@ -159,12 +159,12 @@ describe('Topic Subscriber', () => {
     });
 
     it('should initialize with multiple subjects', () => {
-      class TestSubscriber extends BaseTopicSubscriber {
+      class TestSubscriber extends Subscriber {
         constructor() {
           super(['test.test-app.notifications', 'test.test-app.audit']);
         }
 
-        async call(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
           // Test implementation
         }
       }
@@ -174,12 +174,12 @@ describe('Topic Subscriber', () => {
     });
 
     it('should extract topic from subject', () => {
-      class TestSubscriber extends BaseTopicSubscriber {
+      class TestSubscriber extends Subscriber {
         constructor() {
           super('test.test-app.notifications.email');
         }
 
-        async call(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
           // Test implementation
         }
 
@@ -198,12 +198,12 @@ describe('Topic Subscriber', () => {
     });
 
     it('should check if message is from specific topic', () => {
-      class TestSubscriber extends BaseTopicSubscriber {
+      class TestSubscriber extends Subscriber {
         constructor() {
           super('test.test-app.notifications');
         }
 
-        async call(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
           // Test implementation
         }
 
@@ -237,12 +237,12 @@ describe('Topic Subscriber', () => {
 
       @topicSubscriber('notifications')
       class ProdSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process notification in production
         }
       }
 
-      const subscriber = new ProdSubscriber() as unknown as Subscriber;
+      const subscriber = new ProdSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['production.prod-app.notifications']);
     });
 
@@ -254,12 +254,12 @@ describe('Topic Subscriber', () => {
 
       @topicSubscriberWildcard('notifications')
       class StagingSubscriber {
-        async call(message: Record<string, unknown>, metadata: TopicMetadata) {
-          return { message, metadata };
+        async handle(_message: Record<string, unknown>, _metadata: TopicMetadata): Promise<void> {
+          // Process notification in staging
         }
       }
 
-      const subscriber = new StagingSubscriber() as unknown as Subscriber;
+      const subscriber = new StagingSubscriber() as unknown as SubscriberInterface;
       expect(subscriber.subjects).toEqual(['staging.staging-app.notifications.>']);
     });
   });

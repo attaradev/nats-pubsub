@@ -1,0 +1,21 @@
+{
+  "id": "index",
+  "title": "NatsPubsub Documentation",
+  "description": "Welcome to the comprehensive documentation for NatsPubsub - a production-ready, declarative pub/sub messaging library for NATS JetStream.",
+  "source": "@site/../docs/index.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/nats-pubsub/docs/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/index.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "next": {
+    "title": "Introduction to NatsPubsub",
+    "permalink": "/nats-pubsub/docs/getting-started/introduction"
+  }
+}

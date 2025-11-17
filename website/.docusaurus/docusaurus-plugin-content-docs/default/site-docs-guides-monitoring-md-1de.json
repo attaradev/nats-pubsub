@@ -1,0 +1,16 @@
+{
+  "id": "guides/monitoring",
+  "title": "Practical Monitoring Guide",
+  "description": "Practical guide to monitoring NatsPubsub applications in production, covering essential metrics, alerts, dashboards, and health checks for both JavaScript and Ruby.",
+  "source": "@site/../docs/guides/monitoring.md",
+  "sourceDirName": "guides",
+  "slug": "/guides/monitoring",
+  "permalink": "/nats-pubsub/docs/guides/monitoring",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/guides/monitoring.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

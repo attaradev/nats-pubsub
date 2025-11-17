@@ -4,27 +4,17 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Environment name to use for manual approval (e.g., release, production)"
+        description: "Environment name for manual approval (e.g., release, production)"
         required: false
         type: string
+        default: "release"
   workflow_run:
     workflows: ["CI"]
     types: [completed]
   workflow_dispatch:
     inputs:
-      rollback_version:
-        description: "Version to rollback (e.g., 0.2.0)"
-        required: false
-        type: string
-      rollback_package:
-        description: "Package to rollback (javascript/ruby)"
-        required: false
-        type: choice
-        options:
-          - javascript
-          - ruby
       environment:
-        description: "Environment name to use for manual approval (e.g., release, production)"
+        description: "Environment name for manual approval (e.g., release, production)"
         required: false
         type: string
         default: "release"
@@ -40,7 +30,7 @@ concurrency:
 
 jobs:
   prepare:
-    name: Prepare release inputs
+    name: Prepare Release
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_call' ||
@@ -50,10 +40,7 @@ jobs:
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_branch == 'main'
       ) ||
-      (
-        github.event_name == 'workflow_dispatch' &&
-        (github.event.inputs.rollback_version == '' || github.event.inputs.rollback_version == null)
-      )
+      github.event_name == 'workflow_dispatch'
     outputs:
       has_changesets: ${{ steps.changeset_status.outputs.has_changesets }}
       js_version_changed: ${{ steps.js_status.outputs.js_version_changed }}
@@ -67,73 +54,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.22.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Run security audit (JavaScript)
-        id: security_audit_js
-        continue-on-error: true
-        run: |
-          echo "🔒 Running JavaScript security audit..."
-          echo ""
-
-          pnpm audit --audit-level=high --json > /tmp/npm-audit.json 2>&1 || true
-
-          # Check if the audit output is valid JSON
-          if ! jq empty /tmp/npm-audit.json 2>/dev/null; then
-            echo "⚠️  Warning: Could not parse audit results"
-            echo "has_vulnerabilities=unknown" >> $GITHUB_OUTPUT
-            echo "audit_summary=Could not parse results" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Extract vulnerability counts
-          CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' /tmp/npm-audit.json)
-          HIGH=$(jq '.metadata.vulnerabilities.high // 0' /tmp/npm-audit.json)
-          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' /tmp/npm-audit.json)
-          LOW=$(jq '.metadata.vulnerabilities.low // 0' /tmp/npm-audit.json)
-          TOTAL=$(jq '.metadata.vulnerabilities.total // 0' /tmp/npm-audit.json)
-
-          echo "Vulnerability Summary:"
-          echo "  Critical: $CRITICAL"
-          echo "  High:     $HIGH"
-          echo "  Moderate: $MODERATE"
-          echo "  Low:      $LOW"
-          echo "  Total:    $TOTAL"
-          echo ""
-
-          # Generate detailed report
-          if [ "$TOTAL" -gt 0 ]; then
-            echo "📋 Detailed Vulnerabilities:"
-            jq -r '.advisories | to_entries[] | "  - \(.value.title) (Severity: \(.value.severity))\n    Package: \(.value.module_name)\n    Patched: \(.value.patched_versions)"' /tmp/npm-audit.json || true
-            echo ""
-          fi
-
-          SEVERITY_TOTAL=$((CRITICAL + HIGH))
-          if [ "$SEVERITY_TOTAL" -gt 0 ]; then
-            echo "⚠️  Found $SEVERITY_TOTAL high/critical vulnerabilities"
-            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
-            echo "vulnerability_count=$SEVERITY_TOTAL" >> $GITHUB_OUTPUT
-          else
-            echo "✅ No high/critical vulnerabilities found"
-            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
-            echo "vulnerability_count=0" >> $GITHUB_OUTPUT
-          fi
-
-          # Create audit summary
-          SUMMARY="Critical: $CRITICAL, High: $HIGH, Moderate: $MODERATE, Low: $LOW"
-          echo "audit_summary=$SUMMARY" >> $GITHUB_OUTPUT
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       - name: Validate package builds
         run: |
@@ -153,29 +75,16 @@ jobs:
             exit 1
           fi
 
-          # Check build artifact sizes
-          JS_SIZE=$(stat -f%z "dist/index.js" 2>/dev/null || stat -c%s "dist/index.js" 2>/dev/null)
-          CJS_SIZE=$(stat -f%z "dist/index.cjs" 2>/dev/null || stat -c%s "dist/index.cjs" 2>/dev/null)
-
-          echo "Build artifact sizes:"
-          echo "  - index.js: $(numfmt --to=iec-i --suffix=B $JS_SIZE 2>/dev/null || echo "${JS_SIZE} bytes")"
-          echo "  - index.cjs: $(numfmt --to=iec-i --suffix=B $CJS_SIZE 2>/dev/null || echo "${CJS_SIZE} bytes")"
-
-          # Verify package.json exports match build artifacts
-          if ! node -e "require('./package.json').exports" >/dev/null 2>&1; then
-            echo "⚠️  Warning: Could not validate package.json exports"
-          fi
-
           echo "✅ JavaScript build successful"
 
       - name: Check for pending changesets
         id: changeset_status
         run: |
-          # First check if any changeset files exist (excluding README.md)
+          # Check if any changeset files exist (excluding README.md)
           CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l)
 
           if [ "$CHANGESET_COUNT" -eq 0 ]; then
-            echo "No changeset files found in .changeset directory"
+            echo "No changeset files found"
             echo "has_changesets=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -187,17 +96,8 @@ jobs:
           STATUS=$?
           set -e
 
-          if [ $STATUS -ne 0 ]; then
-            echo "Warning: changeset status command exited with code $STATUS"
-            cat /tmp/changeset-status.json
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Validate that the file contains valid JSON
-          if ! jq empty /tmp/changeset-status.json 2>/dev/null; then
-            echo "Invalid JSON output from changeset status:"
-            cat /tmp/changeset-status.json
+          if [ $STATUS -ne 0 ] || ! jq empty /tmp/changeset-status.json 2>/dev/null; then
+            echo "Warning: changeset status command failed"
             echo "has_changesets=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -239,8 +139,6 @@ jobs:
               JS_VERSION_CHANGED=true
               JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
               echo "JavaScript package version changed to $JS_VERSION"
-            else
-              echo "No JavaScript version change detected"
             fi
           fi
 
@@ -268,11 +166,10 @@ jobs:
           fi
 
           if echo "$CHANGED" | grep -q "packages/ruby/lib/nats_pubsub/version.rb"; then
-            echo "Ruby version file changed"
             RUBY_CHANGED=true
             RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
+            echo "Ruby version changed to $RUBY_VERSION"
           else
-            echo "No Ruby version changes detected"
             RUBY_CHANGED=false
             RUBY_VERSION=""
           fi
@@ -282,63 +179,48 @@ jobs:
 
       - name: Validate Ruby version (if changed)
         if: steps.ruby_status.outputs.ruby_changed == 'true'
-        run: |
-          echo "Validating Ruby version..."
-          ./scripts/ruby-version-sync.sh
+        run: ./scripts/ruby-version-sync.sh
 
-      - name: Pre-release validation summary
-        run: |
-          echo ""
-          echo "========================================"
-          echo "📋 Pre-Release Validation Summary"
-          echo "========================================"
-          echo ""
-          echo "🔒 Security Audit (JavaScript):"
-          echo "  Status: ${{ steps.security_audit_js.outcome }}"
-          echo "  Summary: ${{ steps.security_audit_js.outputs.audit_summary || 'No vulnerabilities' }}"
-          if [ "${{ steps.security_audit_js.outputs.has_vulnerabilities }}" = "true" ]; then
-            echo "  ⚠️  High/Critical: ${{ steps.security_audit_js.outputs.vulnerability_count }}"
-            echo "  Action: Review vulnerabilities before release"
-          else
-            echo "  ✅ No critical vulnerabilities found"
-          fi
-          echo ""
-          echo "🏗️  Build Validation:"
-          echo "  JavaScript: ✅ Passed"
-          echo "  Artifacts: ✅ Verified"
-          echo "  Type Definitions: ✅ Present"
-          echo ""
-          echo "📦 Release Status:"
-          echo "  Has Changesets: ${{ steps.changeset_status.outputs.has_changesets }}"
-          echo "  JS Version Changed: ${{ steps.js_status.outputs.js_version_changed }}"
-          if [ "${{ steps.js_status.outputs.js_version_changed }}" = "true" ]; then
-            echo "  JavaScript Version: ${{ steps.js_status.outputs.js_version }}"
-          fi
-          echo "  Ruby Changes: ${{ steps.ruby_status.outputs.ruby_changed }}"
-          if [ "${{ steps.ruby_status.outputs.ruby_changed }}" = "true" ]; then
-            echo "  Ruby Version: ${{ steps.ruby_status.outputs.ruby_version }}"
-          fi
-          echo ""
-          echo "========================================"
-          echo "✅ Pre-release validation completed"
-          echo "========================================"
-          echo ""
+  # Run security audits before release
+  audit-javascript:
+    name: Security Audit (JS)
+    needs: prepare
+    if: needs.prepare.outputs.js_version_changed == 'true'
+    uses: ./.github/workflows/_audit.yml
+    with:
+      package: javascript
+      fail-on-vulnerabilities: false
+
+  audit-ruby:
+    name: Security Audit (Ruby)
+    needs: prepare
+    if: needs.prepare.outputs.ruby_changed == 'true'
+    uses: ./.github/workflows/_audit.yml
+    with:
+      package: ruby
+      fail-on-vulnerabilities: false
 
   approval:
-    name: Await manual approval
+    name: Manual Approval
     runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.js_version_changed == 'true' || needs.prepare.outputs.ruby_changed == 'true'
+    needs: [prepare, audit-javascript, audit-ruby]
+    if: |
+      always() &&
+      (needs.prepare.outputs.js_version_changed == 'true' || needs.prepare.outputs.ruby_changed == 'true')
     environment:
       name: ${{ inputs.environment || github.event.inputs.environment || 'release' }}
       url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
-      - name: Manual approval required
+      - name: Display security audit results
         run: |
-          echo "This job requires manual approval via the protected 'release' environment before publishing."
+          echo "Security Audit Results:"
+          echo "  JavaScript: ${{ needs.audit-javascript.result }}"
+          echo "  Ruby: ${{ needs.audit-ruby.result }}"
+          echo ""
+          echo "Waiting for manual approval to proceed with release..."
 
   release-pr:
-    name: Create Version Packages PR (JS)
+    name: Create Version Packages PR
     needs: prepare
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.has_changesets == 'true'
@@ -349,22 +231,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.22.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       - name: Create Version Packages PR
-        id: changesets_pr
         uses: changesets/action@v1
         with:
           version: pnpm changeset:version
@@ -373,13 +243,10 @@ jobs:
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
 
-  release:
-    name: Publish JavaScript (JS)
-    needs:
-      - prepare
-      - approval
+  release-javascript:
+    name: Release JavaScript
+    needs: [prepare, approval]
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.js_version_changed == 'true'
 
@@ -389,21 +256,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.22.0
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Create Release PR or Publish to npm
+      - name: Publish to npm
         id: changesets
         uses: changesets/action@v1
         with:
@@ -416,70 +272,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Get published packages info
-        id: packages
+      - name: Get published version
+        id: version
         if: steps.changesets.outputs.published == 'true'
         run: |
-          echo "Published packages:"
-          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq .
-
-          # Extract JavaScript package version if published
           JS_VERSION=$(echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | select(.name == "nats-pubsub") | .version')
           echo "js_version=$JS_VERSION" >> $GITHUB_OUTPUT
-          echo "JavaScript version: $JS_VERSION"
+          echo "Published JavaScript version: $JS_VERSION"
 
-      - name: Generate release notes
-        id: release_notes
-        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
-        run: |
-          cd packages/javascript
-
-          # Extract changelog entry for this version
-          VERSION="${{ steps.packages.outputs.js_version }}"
-          echo "Extracting changelog for version $VERSION..."
-
-          # Create release notes
-          cat > /tmp/release-notes.md << 'NOTES'
-          ## What's Changed
-
-          See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/javascript/CHANGELOG.md#$(echo $VERSION | sed 's/\.//g')) for detailed changes.
-
-          ## Installation
-
-          ```bash
-          npm install nats-pubsub@$VERSION
-          # or
-          pnpm add nats-pubsub@$VERSION
-          # or
-          yarn add nats-pubsub@$VERSION
-          ```
-
-          ## Package Details
-
-          - **Size**: $(npm view nats-pubsub@$VERSION dist.unpackedSize 2>/dev/null || echo "calculating...")
-          - **Dependencies**: $(cat package.json | jq -r '.dependencies | keys | length') direct dependencies
-          - **Node.js**: >= 20.0.0
-          - **TypeScript**: Full type definitions included
-
-          ## Verification
-
-          This release includes [npm provenance](https://docs.npmjs.com/generating-provenance-statements) for supply chain security.
-
-          ```bash
-          # Verify package authenticity
-          npm view nats-pubsub@$VERSION
-          ```
-          NOTES
-
-          echo "release_notes_path=/tmp/release-notes.md" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release for JavaScript
-        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
+      - name: Create GitHub Release
+        if: steps.changesets.outputs.published == 'true' && steps.version.outputs.js_version != ''
         uses: softprops/action-gh-release@v2.4.2
         with:
-          tag_name: javascript-v${{ steps.packages.outputs.js_version }}
-          name: JavaScript v${{ steps.packages.outputs.js_version }}
-          body_path: ${{ steps.release_notes.outputs.release_notes_path }}
+          tag_name: javascript-v${{ steps.version.outputs.js_version }}
+          name: JavaScript v${{ steps.version.outputs.js_version }}
+          body: |
+            JavaScript/TypeScript package release v${{ steps.version.outputs.js_version }}
+
+            ## Installation
+
+            ```bash
+            npm install nats-pubsub@${{ steps.version.outputs.js_version }}
+            # or
+            pnpm add nats-pubsub@${{ steps.version.outputs.js_version }}
+            # or
+            yarn add nats-pubsub@${{ steps.version.outputs.js_version }}
+            ```
+
+            See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/javascript/CHANGELOG.md) for detailed changes.
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -488,146 +308,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify npm publication
-        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
+        if: steps.changesets.outputs.published == 'true' && steps.version.outputs.js_version != ''
         run: |
           echo "Waiting 10 seconds for npm registry propagation..."
           sleep 10
 
-          VERSION="${{ steps.packages.outputs.js_version }}"
-
-          # Verify package exists
-          if ! npm view nats-pubsub@$VERSION >/dev/null 2>&1; then
-            echo "⚠️  Warning: Package not found on npm registry yet. This might be expected if there was a publication delay."
-            exit 0
-          fi
-
-          echo "✅ Package found on npm registry"
-          echo ""
-
-          # Verify package metadata
-          echo "📦 Verifying package metadata..."
-          PUBLISHED_VERSION=$(npm view nats-pubsub@$VERSION version)
-          if [ "$PUBLISHED_VERSION" != "$VERSION" ]; then
-            echo "❌ Version mismatch: expected $VERSION, got $PUBLISHED_VERSION"
-            exit 1
-          fi
-          echo "  Version: ✅ $PUBLISHED_VERSION"
-
-          # Check package size
-          SIZE=$(npm view nats-pubsub@$VERSION dist.unpackedSize)
-          SIZE_MB=$(echo "scale=2; $SIZE / 1024 / 1024" | bc)
-          echo "  Size: $SIZE bytes (~${SIZE_MB}MB)"
-
-          # Verify critical package.json fields
-          echo ""
-          echo "🔍 Verifying package integrity..."
-          MAIN=$(npm view nats-pubsub@$VERSION main)
-          MODULE=$(npm view nats-pubsub@$VERSION module)
-          TYPES=$(npm view nats-pubsub@$VERSION types)
-          echo "  Main: $MAIN"
-          echo "  Module: $MODULE"
-          echo "  Types: $TYPES"
-
-          # Verify provenance (NPM_CONFIG_PROVENANCE was set during publish)
-          echo ""
-          echo "🔐 Verifying provenance..."
-          if npm view nats-pubsub@$VERSION --json | jq -e '.dist.attestations' >/dev/null 2>&1; then
-            echo "  ✅ Provenance attestations found"
-            npm view nats-pubsub@$VERSION --json | jq '.dist.attestations' || true
+          VERSION="${{ steps.version.outputs.js_version }}"
+          if npm view nats-pubsub@$VERSION >/dev/null 2>&1; then
+            echo "✅ Package successfully published and verified on npm"
           else
-            echo "  ⚠️  Warning: No provenance attestations found"
+            echo "⚠️  Warning: Package not yet available on npm registry"
           fi
-
-          # Verify package contains expected files
-          echo ""
-          echo "📁 Verifying package contents..."
-          FILES=$(npm view nats-pubsub@$VERSION files --json | jq -r '.[]' | wc -l)
-          echo "  Files included: $FILES"
-          npm view nats-pubsub@$VERSION files --json | jq -r '.[]' | head -10
-
-          # Check dependencies
-          echo ""
-          echo "📚 Dependencies:"
-          npm view nats-pubsub@$VERSION dependencies --json | jq .
-
-          echo ""
-          echo "✅ Package successfully published and verified on npm"
-
-      - name: Test package installation
-        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
-        run: |
-          echo "Testing package installation..."
-          mkdir -p /tmp/test-install
-          cd /tmp/test-install
-          npm init -y
-          npm install nats-pubsub@${{ steps.packages.outputs.js_version }}
-
-          # Verify installation
-          if [ ! -d "node_modules/nats-pubsub" ]; then
-            echo "❌ Package installation failed"
-            exit 1
-          fi
-
-          echo "✓ Package installs successfully"
-
-      - name: Notify release success
-        if: steps.changesets.outputs.published == 'true' && steps.packages.outputs.js_version != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ steps.packages.outputs.js_version }}';
-            const releaseUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/javascript-v${version}`;
-            const npmUrl = `https://www.npmjs.com/package/nats-pubsub/v/${version}`;
-
-            // Create a discussion or comment (optional - can be configured)
-            console.log(`✅ JavaScript package v${version} released successfully!`);
-            console.log(`📦 npm: ${npmUrl}`);
-            console.log(`🏷️  GitHub Release: ${releaseUrl}`);
-
-            // You can add additional notifications here:
-            // - Post to Discord/Slack webhook
-            // - Send email
-            // - Create GitHub Discussion
-            // - Update documentation
-
-            // Example: Create a release announcement discussion
-            try {
-              const discussion = await github.rest.discussions.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                category_id: 'announcements', // You'll need to configure this
-                title: `🚀 nats-pubsub v${version} Released`,
-                body: `We're excited to announce the release of nats-pubsub v${version}!
-
-                ## Installation
-
-                \`\`\`bash
-                npm install nats-pubsub@${version}
-                # or
-                pnpm add nats-pubsub@${version}
-                # or
-                yarn add nats-pubsub@${version}
-                \`\`\`
-
-                ## Links
-
-                - 📦 [npm Package](${npmUrl})
-                - 🏷️  [GitHub Release](${releaseUrl})
-                - 📖 [Changelog](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/packages/javascript/CHANGELOG.md)
-
-                Thank you to all contributors! 🎉`
-              });
-              console.log(`Created discussion: ${discussion.data.html_url}`);
-            } catch (error) {
-              console.log('Note: Could not create discussion (this is optional):', error.message);
-            }
 
   release-ruby:
-    name: Release Ruby Package
+    name: Release Ruby
+    needs: [prepare, approval]
     runs-on: ubuntu-latest
-    needs:
-      - prepare
-      - approval
     if: needs.prepare.outputs.ruby_changed == 'true'
 
     steps:
@@ -636,44 +332,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
-          working-directory: packages/ruby
-          rubygems: latest
-
-      - name: Run security audit (Ruby)
-        continue-on-error: true
-        run: |
-          cd packages/ruby
-          echo "Installing bundler-audit..."
-          gem install bundler-audit
-
-          echo "Updating vulnerability database..."
-          bundle audit update
-
-          echo "Running security audit..."
-          bundle audit check --verbose || {
-            echo "⚠️ Security vulnerabilities found in Ruby dependencies"
-            echo "Review and address before releasing if critical"
-          }
-
-      - name: Validate gem build
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        run: |
-          cd packages/ruby
-          echo "Building gem..."
-          gem build nats_pubsub.gemspec
-
-          # Verify gem was created
-          if [ ! -f "nats_pubsub-${RUBY_VERSION}.gem" ]; then
-            echo "❌ Gem build failed"
-            exit 1
-          fi
-          echo "✅ Gem built successfully: nats_pubsub-${RUBY_VERSION}.gem"
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
 
       - name: Check if tag exists
         id: check_tag
@@ -681,10 +341,8 @@ jobs:
           RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
         run: |
           if git rev-parse "ruby-v${RUBY_VERSION}" >/dev/null 2>&1; then
-            echo "Tag ruby-v${RUBY_VERSION} already exists"
             echo "tag_exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Tag does not exist, will create it"
             echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
 
@@ -719,34 +377,13 @@ jobs:
           echo "Waiting 15 seconds for RubyGems propagation..."
           sleep 15
 
-          # Verify gem exists
-          gem list -r nats_pubsub | grep "nats_pubsub (${RUBY_VERSION})" || {
-            echo "Warning: Gem not found on RubyGems yet. This might be expected if there was a publication delay."
-            exit 0
-          }
-
-          # Verify gem info
-          echo "Verifying gem metadata..."
-          gem info nats_pubsub -r --version ${RUBY_VERSION} || true
-
-          echo "✓ Gem successfully published and available on RubyGems"
-
-      - name: Test gem installation
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        run: |
-          echo "Testing gem installation..."
-          gem install nats_pubsub -v ${RUBY_VERSION}
-
-          # Verify installation
-          if ! gem list -i nats_pubsub -v ${RUBY_VERSION} >/dev/null 2>&1; then
-            echo "❌ Gem installation failed"
-            exit 1
+          if gem list -r nats_pubsub | grep "nats_pubsub (${RUBY_VERSION})"; then
+            echo "✅ Gem successfully published and verified on RubyGems"
+          else
+            echo "⚠️  Warning: Gem not yet available on RubyGems"
           fi
 
-          echo "✓ Gem installs successfully"
-
-      - name: Create GitHub Release for Ruby
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2.4.2
         env:
           RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
@@ -756,8 +393,6 @@ jobs:
           name: Ruby v${{ env.RUBY_VERSION }}
           body: |
             Ruby package release v${{ env.RUBY_VERSION }}
-
-            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for details.
 
             ## Installation
 
@@ -770,175 +405,9 @@ jobs:
             ```bash
             gem install nats_pubsub -v ${{ env.RUBY_VERSION }}
             ```
+
+            See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for detailed changes.
           files: packages/ruby/*.gem
           draft: false
           prerelease: false
           generate_release_notes: true
-
-      - name: Notify Ruby release success
-        uses: actions/github-script@v7
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        with:
-          script: |
-            const version = process.env.RUBY_VERSION;
-            const releaseUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/ruby-v${version}`;
-            const gemsUrl = `https://rubygems.org/gems/nats_pubsub/versions/${version}`;
-
-            console.log(`✅ Ruby gem v${version} released successfully!`);
-            console.log(`💎 RubyGems: ${gemsUrl}`);
-            console.log(`🏷️  GitHub Release: ${releaseUrl}`);
-
-            // Optional: Create a release announcement
-            try {
-              const discussion = await github.rest.discussions.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                category_id: 'announcements',
-                title: `💎 nats_pubsub (Ruby) v${version} Released`,
-                body: `We're excited to announce the release of the Ruby gem nats_pubsub v${version}!
-
-                ## Installation
-
-                \`\`\`ruby
-                # In your Gemfile
-                gem 'nats_pubsub', '~> ${version}'
-                \`\`\`
-
-                Or install directly:
-
-                \`\`\`bash
-                gem install nats_pubsub -v ${version}
-                \`\`\`
-
-                ## Links
-
-                - 💎 [RubyGems Package](${gemsUrl})
-                - 🏷️  [GitHub Release](${releaseUrl})
-                - 📖 [Changelog](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/packages/ruby/CHANGELOG.md)
-
-                Thank you to all contributors! 🎉`
-              });
-              console.log(`Created discussion: ${discussion.data.html_url}`);
-            } catch (error) {
-              console.log('Note: Could not create discussion (this is optional):', error.message);
-            }
-
-  rollback:
-    name: Rollback Release (Manual)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_version != ''
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Validate rollback request
-        run: |
-          VERSION="${{ github.event.inputs.rollback_version }}"
-          PACKAGE="${{ github.event.inputs.rollback_package }}"
-
-          echo "🔄 Rollback Request"
-          echo "==================="
-          echo "Package: $PACKAGE"
-          echo "Version: $VERSION"
-          echo ""
-
-          if [ -z "$VERSION" ] || [ -z "$PACKAGE" ]; then
-            echo "❌ Error: Version and package must be specified"
-            exit 1
-          fi
-
-          # Verify tag exists
-          TAG_NAME="${PACKAGE}-v${VERSION}"
-          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "❌ Error: Tag $TAG_NAME does not exist"
-            exit 1
-          fi
-
-          echo "✅ Tag $TAG_NAME exists"
-          echo "⚠️  WARNING: This will deprecate the npm package (cannot unpublish)"
-          echo "   Ruby gems cannot be unpublished from RubyGems"
-
-      - name: Deprecate npm package (JavaScript only)
-        if: github.event.inputs.rollback_package == 'javascript'
-        run: |
-          VERSION="${{ github.event.inputs.rollback_version }}"
-
-          echo "Deprecating nats-pubsub@$VERSION on npm..."
-          echo "⚠️  Note: This requires NPM_TOKEN to be set"
-
-          # This would require NPM_TOKEN with appropriate permissions
-          # npm deprecate "nats-pubsub@$VERSION" "This version has been rolled back due to critical issues. Please upgrade to the latest version."
-
-          echo "⚠️  Manual action required:"
-          echo "   Run: npm deprecate nats-pubsub@$VERSION \"Rolled back due to issues\""
-
-      - name: Create rollback issue
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ github.event.inputs.rollback_version }}';
-            const package = '${{ github.event.inputs.rollback_package }}';
-
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Rollback: ${package} v${version}`,
-              body: `## Rollback Request
-
-              **Package:** ${package}
-              **Version:** ${version}
-              **Initiated by:** @${context.actor}
-              **Workflow:** ${context.workflow}
-
-              ### Required Actions
-
-              ${package === 'javascript' ? `
-              - [ ] Deprecate npm package: \`npm deprecate nats-pubsub@${version} "Rolled back"\`
-              - [ ] Verify deprecation: \`npm view nats-pubsub@${version}\`
-              ` : ''}
-
-              ${package === 'ruby' ? `
-              - [ ] Contact RubyGems support to yank gem (if within 24 hours)
-              - [ ] Update documentation warning users about this version
-              ` : ''}
-
-              - [ ] Delete GitHub release tag: \`${package}-v${version}\`
-              - [ ] Update CHANGELOG.md to document the rollback
-              - [ ] Investigate root cause
-              - [ ] Create new release with fixes
-
-              ### Notes
-
-              - npm packages cannot be unpublished after 72 hours
-              - RubyGems can only be yanked within certain time limits
-              - GitHub releases and tags can be deleted
-
-              cc: @${context.actor}`,
-              labels: ['release', 'rollback', 'urgent']
-            });
-
-            console.log(`Created issue #${issue.data.number}`);
-
-      - name: Rollback summary
-        run: |
-          echo ""
-          echo "================================"
-          echo "🔄 Rollback Summary"
-          echo "================================"
-          echo ""
-          echo "Package: ${{ github.event.inputs.rollback_package }}"
-          echo "Version: ${{ github.event.inputs.rollback_version }}"
-          echo ""
-          echo "⚠️  Manual steps required - see issue created above"
-          echo ""
-          echo "Next steps:"
-          echo "1. Review the created issue for manual actions"
-          echo "2. Deprecate the package on the registry"
-          echo "3. Delete the GitHub release and tag if needed"
-          echo "4. Investigate and fix the issue"
-          echo "5. Create a new release with fixes"
-          echo ""

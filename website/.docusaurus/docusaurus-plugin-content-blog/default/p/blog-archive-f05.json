@@ -1,0 +1,50 @@
+{
+  "archive": {
+    "blogPosts": [
+      {
+        "id": "introducing-natspubsub-1.0",
+        "metadata": {
+          "permalink": "/blog/introducing-natspubsub-1.0",
+          "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/website/blog/2025-01-15-introducing-natspubsub.md",
+          "source": "@site/blog/2025-01-15-introducing-natspubsub.md",
+          "title": "Introducing NatsPubsub 1.0",
+          "description": "We're excited to announce the release of NatsPubsub 1.0, a production-ready pub/sub messaging library for NATS JetStream!",
+          "date": "2025-01-15T00:00:00.000Z",
+          "tags": [
+            {
+              "inline": true,
+              "label": "announcement",
+              "permalink": "/blog/tags/announcement"
+            },
+            {
+              "inline": true,
+              "label": "release",
+              "permalink": "/blog/tags/release"
+            }
+          ],
+          "readingTime": 2.05,
+          "hasTruncateMarker": true,
+          "authors": [
+            {
+              "name": "Mike Attara",
+              "title": "NatsPubsub Maintainer",
+              "url": "https://github.com/attaradev",
+              "email": "mpyebattara@gmail.com",
+              "imageURL": "https://github.com/attaradev.png",
+              "key": "mike",
+              "page": null
+            }
+          ],
+          "frontMatter": {
+            "slug": "introducing-natspubsub-1.0",
+            "title": "Introducing NatsPubsub 1.0",
+            "authors": ["mike"],
+            "tags": ["announcement", "release"]
+          },
+          "unlisted": false
+        },
+        "content": "We're excited to announce the release of **NatsPubsub 1.0**, a production-ready pub/sub messaging library for NATS JetStream!\n\n<!--truncate-->\n\n## What is NatsPubsub?\n\nNatsPubsub is a declarative pub/sub library that makes working with NATS JetStream effortless. Available in both **JavaScript/TypeScript** and **Ruby**, it brings battle-tested reliability patterns to your event-driven architecture.\n\n## Key Features\n\n### 🎯 Declarative API\n\nWrite clean, maintainable message handlers with a familiar, class-based API:\n\n```typescript\nclass OrderCreatedSubscriber extends Subscriber {\n  constructor() {\n    super('order.created');\n  }\n\n  async handle(message, metadata) {\n    await processOrder(message);\n  }\n}\n```\n\n### 🔒 Built-in Reliability\n\n- **Inbox/Outbox Pattern**: Guaranteed message delivery with transactional guarantees\n- **Dead Letter Queue**: Automatic handling of failed messages\n- **Automatic Retries**: Exponential backoff with configurable retry strategies\n\n### 🌐 Cross-Language Support\n\nJavaScript and Ruby implementations use identical event formats, enabling seamless communication between polyglot microservices.\n\n### ⚡ Production Ready\n\n- Comprehensive monitoring with Prometheus metrics\n- Health check endpoints\n- Structured logging\n- 95%+ test coverage\n\n## Getting Started\n\n### JavaScript/TypeScript\n\n```bash\nnpm install nats-pubsub\n```\n\n```typescript\nimport { Publisher } from 'nats-pubsub';\n\nconst publisher = new Publisher({\n  servers: 'nats://localhost:4222',\n  env: 'production',\n  appName: 'my-app'\n});\n\nawait publisher.publish('order.created', {\n  orderId: '123',\n  amount: 99.99\n});\n```\n\n### Ruby\n\n```bash\ngem install nats_pubsub\n```\n\n```ruby\nrequire 'nats_pubsub'\n\nNatsPubsub.configure do |config|\n  config.servers = 'nats://localhost:4222'\n  config.env = 'production'\n  config.app_name = 'my-app'\nend\n\nNatsPubsub.publish('order.created', {\n  order_id: '123',\n  amount: 99.99\n})\n```\n\n## Why NatsPubsub?\n\n### vs. Raw NATS Client\n\n- ✅ Declarative subscriber API (vs. imperative callbacks)\n- ✅ Built-in reliability patterns (vs. manual implementation)\n- ✅ Comprehensive testing utilities\n- ✅ Auto-topology management\n- ✅ Framework integrations (Rails, Express, NestJS)\n\n### vs. Kafka\n\n- ✅ Simpler operations (no ZooKeeper)\n- ✅ Lower latency (&lt;1ms vs. 5-50ms)\n- ✅ Smaller resource footprint\n- ✅ Built-in request/reply pattern\n\n### vs. RabbitMQ\n\n- ✅ Higher performance (2-10x throughput)\n- ✅ Simpler configuration\n- ✅ Better cloud-native support\n- ✅ Built-in message persistence\n\n## What's Next?\n\nWe're committed to making NatsPubsub the best pub/sub library for NATS JetStream. Upcoming features include:\n\n- Enhanced observability with OpenTelemetry integration\n- GraphQL subscriptions support\n- Additional language implementations (Python, Go)\n- Cloud deployment templates (AWS, GCP, Azure)\n\n## Get Involved\n\n- **GitHub**: [github.com/attaradev/nats-pubsub](https://github.com/attaradev/nats-pubsub)\n- **Documentation**: [Full documentation](/docs/intro)\n- **JavaScript Examples**: [Working examples](https://github.com/attaradev/nats-pubsub/tree/main/packages/javascript/examples)\n- **Ruby Examples**: [Working examples](https://github.com/attaradev/nats-pubsub/tree/main/packages/ruby/examples)\n- **Discussions**: [GitHub Discussions](https://github.com/attaradev/nats-pubsub/discussions)\n\n## Acknowledgments\n\nSpecial thanks to the NATS community and all early adopters who provided feedback during the beta phase. Your input was invaluable in shaping this release.\n\n---\n\nReady to get started? Check out our [documentation](/docs/intro) and start building event-driven applications today!"
+      }
+    ]
+  }
+}

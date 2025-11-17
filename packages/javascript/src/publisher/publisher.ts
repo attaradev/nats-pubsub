@@ -1,66 +1,107 @@
-import { PublishOptions } from '../types';
+import { JetStreamClient, headers as natsHeaders } from 'nats';
 import connection from '../core/connection';
 import config from '../core/config';
-import { randomUUID } from 'crypto';
-import { headers } from 'nats';
+import { EnvelopeBuilder } from './envelope-builder';
+import { SubjectBuilder } from './subject-builder';
+import { PublishValidator } from './publish-validator';
+import { PublishResultBuilder } from './publish-result';
+import {
+  TopicPublishOptions,
+  DomainResourceActionParams,
+  MultiTopicParams,
+  MultiTopicPublishResult,
+} from './types';
+
+// Re-export types for backward compatibility
+export { TopicMessage, TopicPublishOptions } from './types';
 
 /**
- * Topic message envelope structure
+ * Logger interface for dependency injection
  */
-export interface TopicMessage {
-  event_id: string;
-  schema_version: number;
-  topic: string;
-  message_type?: string;
-  producer: string;
-  occurred_at: string;
-  trace_id?: string;
-  message: Record<string, unknown>;
-  // Domain/resource/action fields (for backward compatibility when using publish())
-  domain?: string;
-  resource?: string;
-  action?: string;
-  resource_id?: string;
+export interface Logger {
+  debug(message: string, meta?: Record<string, unknown>): void;
+  info(message: string, meta?: Record<string, unknown>): void;
+  error(message: string, meta?: Record<string, unknown>): void;
+  warn(message: string, meta?: Record<string, unknown>): void;
 }
 
 /**
- * Options for topic publishing
+ * Connection manager interface for dependency injection
  */
-export interface TopicPublishOptions {
-  event_id?: string;
-  occurred_at?: Date;
-  trace_id?: string;
-  message_type?: string;
-  // Domain/resource/action fields (used internally by publish())
-  domain?: string;
-  resource?: string;
-  action?: string;
-  resource_id?: string;
+export interface ConnectionManager {
+  ensureConnection(): Promise<void>;
+  getJetStream(): JetStreamClient;
 }
 
 /**
- * Unified Publisher class - Topics are the foundation
+ * Publisher - Handles message publishing to NATS JetStream
  *
- * This publisher uses topics as the base architecture with domain/resource/action
- * as a convenience layer. All messages flow through the topic infrastructure.
+ * This class follows SOLID principles and best practices:
+ * - Single Responsibility: Coordinates publishing operations
+ * - Open/Closed: Easy to extend with new publish strategies
+ * - Liskov Substitution: Can be replaced with mock implementations
+ * - Interface Segregation: Uses focused interfaces
+ * - Dependency Inversion: Depends on abstractions (interfaces)
  *
- * @example Topic-based publishing (recommended)
+ * Design Patterns:
+ * - Dependency Injection: All dependencies are injected
+ * - Strategy Pattern: Different publish strategies (topic, multi-topic, domain/resource/action)
+ * - Builder Pattern: Uses builder classes for construction
+ *
+ * @example Basic usage
  * ```typescript
  * const publisher = new Publisher();
- * await publisher.publishToTopic('notifications.email', { to: 'user@example.com' });
- * await publisher.publishToTopic('users.user.created', { id: 123 });
+ * await publisher.publishToTopic('notifications', { message: 'Hello' });
  * ```
  *
- * @example Domain/resource/action (convenience layer)
+ * @example With dependency injection
  * ```typescript
- * await publisher.publish('users', 'user', 'created', { id: 123 });
- * // Internally maps to topic: 'users.user.created'
+ * const publisher = new Publisher(
+ *   customConnection,
+ *   customLogger,
+ *   customEnvelopeBuilder,
+ *   customSubjectBuilder,
+ *   customValidator
+ * );
  * ```
  */
 export class Publisher {
-  // ========================================================================
-  // TOPIC-BASED METHODS (Foundation)
-  // ========================================================================
+  private readonly connectionManager: ConnectionManager;
+  private readonly logger: Logger;
+  private readonly envelopeBuilder: EnvelopeBuilder;
+  private readonly subjectBuilder: SubjectBuilder;
+  private readonly validator: PublishValidator;
+
+  /**
+   * Create a new Publisher instance
+   *
+   * @param connectionManager - Connection manager (defaults to global connection)
+   * @param logger - Logger instance (defaults to global config.logger)
+   * @param envelopeBuilder - Envelope builder (created from config if not provided)
+   * @param subjectBuilder - Subject builder (created from config if not provided)
+   * @param validator - Validator instance (created if not provided)
+   */
+  constructor(
+    connectionManager?: ConnectionManager,
+    logger?: Logger,
+    envelopeBuilder?: EnvelopeBuilder,
+    subjectBuilder?: SubjectBuilder,
+    validator?: PublishValidator
+  ) {
+    this.connectionManager = connectionManager || connection;
+    this.logger = logger || config.logger;
+
+    if (envelopeBuilder && subjectBuilder) {
+      this.envelopeBuilder = envelopeBuilder;
+      this.subjectBuilder = subjectBuilder;
+    } else {
+      const cfg = config.get();
+      this.envelopeBuilder = envelopeBuilder || new EnvelopeBuilder(cfg.appName);
+      this.subjectBuilder = subjectBuilder || new SubjectBuilder(cfg.env, cfg.appName);
+    }
+
+    this.validator = validator || new PublishValidator();
+  }
 
   /**
    * Publish a message to a specific topic
@@ -92,62 +133,50 @@ export class Publisher {
     message: Record<string, unknown>,
     options: TopicPublishOptions = {}
   ): Promise<void> {
-    await connection.ensureConnection();
-    const js = connection.getJetStream();
-    const cfg = config.get();
-    const logger = config.logger;
+    // Validate inputs
+    this.validator.validateTopic(topic);
+    this.validator.validateMessage(message);
 
-    const eventId = options.event_id || randomUUID();
-    const occurredAt = options.occurred_at || new Date();
-    const subject = this.buildTopicSubject(topic);
+    // Ensure connection
+    await this.connectionManager.ensureConnection();
+    const js = this.connectionManager.getJetStream();
 
-    const envelope: TopicMessage = {
-      event_id: eventId,
-      schema_version: 1,
-      topic: topic,
-      message_type: options.message_type,
-      producer: cfg.appName,
-      occurred_at: occurredAt.toISOString(),
-      trace_id: options.trace_id,
-      message,
-    };
-
-    // Include domain/resource/action if provided (for backward compatibility)
-    if (options.domain) envelope.domain = options.domain;
-    if (options.resource) envelope.resource = options.resource;
-    if (options.action) envelope.action = options.action;
-    if (options.resource_id) envelope.resource_id = options.resource_id;
+    // Build envelope and subject
+    const envelope = this.envelopeBuilder.build(topic, message, options);
+    const subject = this.subjectBuilder.buildTopicSubject(topic);
 
     try {
-      logger.debug('Publishing to topic', {
+      this.logger.debug('Publishing to topic', {
         subject,
         topic,
-        event_id: eventId,
+        event_id: envelope.event_id,
       });
 
-      const hdrs = headers();
-      hdrs.set('Nats-Msg-Id', eventId);
+      // Build NATS headers
+      const hdrs = natsHeaders();
+      hdrs.set('Nats-Msg-Id', envelope.event_id);
       hdrs.set('topic', topic);
 
       if (options.trace_id) {
         hdrs.set('trace_id', options.trace_id);
       }
 
+      // Publish to NATS
       await js.publish(subject, JSON.stringify(envelope), {
-        msgID: eventId,
+        msgID: envelope.event_id,
         headers: hdrs,
       });
 
-      logger.info('Topic message published successfully', {
+      this.logger.info('Topic message published successfully', {
         subject,
         topic,
-        event_id: eventId,
+        event_id: envelope.event_id,
       });
     } catch (error) {
-      logger.error('Failed to publish topic message', {
+      this.logger.error('Failed to publish topic message', {
         subject,
         topic,
-        event_id: eventId,
+        event_id: envelope.event_id,
         error,
       });
       throw error;
@@ -163,22 +192,26 @@ export class Publisher {
    * @param topics - Array of topic names
    * @param message - Message payload
    * @param options - Additional publish options
-   * @returns Results object with topic => success boolean
+   * @returns Results object with statistics
    *
    * @example
    * ```typescript
-   * const results = await publisher.publishToTopics(
+   * const result = await publisher.publishToTopics(
    *   ['notifications.email', 'audit.user_events'],
    *   { action: 'user_login', user_id: 123 }
    * );
-   * console.log(results); // { 'notifications.email': true, 'audit.user_events': true }
+   * console.log(`Published to ${result.successCount} topics`);
    * ```
    */
   async publishToTopics(
     topics: string[],
     message: Record<string, unknown>,
     options: TopicPublishOptions = {}
-  ): Promise<Record<string, boolean>> {
+  ): Promise<MultiTopicPublishResult> {
+    // Validate inputs
+    this.validator.validateTopicsArray(topics);
+    this.validator.validateMessage(message);
+
     const results: Record<string, boolean> = {};
 
     await Promise.all(
@@ -192,93 +225,127 @@ export class Publisher {
       })
     );
 
-    return results;
+    return PublishResultBuilder.fromTopicResults(results);
   }
 
-  // ========================================================================
-  // DOMAIN/RESOURCE/ACTION METHODS (Convenience Layer)
-  // ========================================================================
-
   /**
-   * Publish an event using domain/resource/action pattern
+   * Polymorphic publish method that supports both topic-based and domain/resource/action patterns
    *
-   * This is a convenience method that maps to topic-based publishing internally.
-   * Domain/resource/action automatically maps to topic: `{domain}.{resource}.{action}`
+   * @overload
+   * Publish to a single topic
+   * @param topic - Topic name
+   * @param message - Message payload
+   * @param options - Optional publish options
    *
-   * @param domain - Business domain (e.g., 'users', 'orders')
-   * @param resource - Resource type (e.g., 'user', 'order')
-   * @param action - Event action (e.g., 'created', 'updated', 'deleted')
-   * @param payload - Event payload data
-   * @param options - Additional publish options
+   * @overload
+   * Publish to multiple topics
+   * @param params - Object with topics array and message
+   * @param params.topics - Array of topic names
+   * @param params.message - Message payload
+   * @param options - Optional publish options
    *
-   * @example
+   * @overload
+   * Publish using domain/resource/action pattern
+   * @param params - Object with domain, resource, action, and payload
+   * @param params.domain - Business domain
+   * @param params.resource - Resource type
+   * @param params.action - Event action
+   * @param params.payload - Event payload
+   * @param options - Optional publish options
+   *
+   * @example Topic-based (single)
    * ```typescript
-   * // Publishes to topic: 'users.user.created'
-   * await publisher.publish('users', 'user', 'created', {
-   *   id: 123,
-   *   name: 'John Doe'
-   * });
+   * await publisher.publish('notifications.email', { to: 'user@example.com' });
+   * ```
    *
-   * // Equivalent to:
-   * await publisher.publishToTopic('users.user.created', {
-   *   id: 123,
-   *   name: 'John Doe'
-   * }, { domain: 'users', resource: 'user', action: 'created' });
+   * @example Topic-based (multiple)
+   * ```typescript
+   * await publisher.publish({
+   *   topics: ['notifications', 'audit'],
+   *   message: { action: 'login' }
+   * });
+   * ```
+   *
+   * @example Domain/Resource/Action
+   * ```typescript
+   * await publisher.publish({
+   *   domain: 'users',
+   *   resource: 'user',
+   *   action: 'created',
+   *   payload: { id: 123, name: 'John' }
+   * });
    * ```
    */
   async publish(
-    domain: string,
-    resource: string,
-    action: string,
-    payload: Record<string, unknown>,
-    options: PublishOptions = {}
+    topicOrParams: string | MultiTopicParams | DomainResourceActionParams,
+    messageOrOptions?: Record<string, unknown> | TopicPublishOptions,
+    options?: TopicPublishOptions
+  ): Promise<void | MultiTopicPublishResult> {
+    // Case 1: Topic-based single topic - publish(topic, message, options?)
+    if (typeof topicOrParams === 'string') {
+      const topic = topicOrParams;
+      const message = messageOrOptions as Record<string, unknown>;
+      const opts = options || {};
+      return this.publishToTopic(topic, message, opts);
+    }
+
+    // Case 2: Multiple topics - publish({ topics: [...], message: {...} }, options?)
+    if ('topics' in topicOrParams && 'message' in topicOrParams) {
+      this.validator.validateMultiTopicParams(topicOrParams);
+      const opts = (messageOrOptions as TopicPublishOptions) || {};
+      return this.publishToTopics(topicOrParams.topics, topicOrParams.message, opts);
+    }
+
+    // Case 3: Domain/Resource/Action - publish({ domain, resource, action, payload }, options?)
+    if ('domain' in topicOrParams && 'resource' in topicOrParams && 'action' in topicOrParams) {
+      this.validator.validateDomainResourceAction(topicOrParams);
+      return this.publishDomainResourceAction(
+        topicOrParams,
+        messageOrOptions as TopicPublishOptions
+      );
+    }
+
+    throw new Error(
+      'Invalid publish arguments. Use topic string, topics array, or domain/resource/action object.'
+    );
+  }
+
+  /**
+   * Publish using domain/resource/action pattern
+   *
+   * @param params - Domain/resource/action parameters
+   * @param options - Optional publish options
+   */
+  private async publishDomainResourceAction(
+    params: DomainResourceActionParams,
+    options: TopicPublishOptions = {}
   ): Promise<void> {
+    const { domain, resource, action, payload } = params;
+
     // Map domain/resource/action to topic
-    const topic = `${domain}.${resource}.${action}`;
+    const topic = this.subjectBuilder.buildTopicFromDomainResourceAction(domain, resource, action);
 
     // Build topic publish options including domain/resource/action for backward compatibility
     const topicOptions: TopicPublishOptions = {
-      event_id: options.event_id,
-      occurred_at: options.occurred_at,
-      trace_id: options.trace_id,
+      ...options,
       domain,
       resource,
       action,
-      resource_id: this.extractResourceId(payload),
+      resource_id: this.envelopeBuilder.extractResourceId(payload),
     };
 
-    // Publish using topic infrastructure
-    await this.publishToTopic(topic, payload, topicOptions);
-  }
-
-  // ========================================================================
-  // HELPER METHODS
-  // ========================================================================
-
-  /**
-   * Build NATS subject for topic
-   * Format: {env}.${cfg.appName}.{topic_name}
-   */
-  private buildTopicSubject(topic: string): string {
-    const cfg = config.get();
-    return `${cfg.env}.${cfg.appName}.${this.normalizeTopicName(topic)}`;
-  }
-
-  /**
-   * Normalize topic name (replace special characters except dots with underscores)
-   * Dots are preserved to allow hierarchical topics
-   * NATS wildcards (> and *) are also preserved for pattern matching
-   */
-  private normalizeTopicName(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9_.>*-]/g, '_');
-  }
-
-  /**
-   * Extract resource_id from payload if present
-   */
-  private extractResourceId(payload: Record<string, unknown>): string | undefined {
-    return (payload.id || payload.ID) as string | undefined;
+    return this.publishToTopic(topic, payload, topicOptions);
   }
 }
 
-export default new Publisher();
+// Lazy-initialized singleton instance
+let publisherInstance: Publisher | null = null;
+
+function getPublisherInstance(): Publisher {
+  if (!publisherInstance) {
+    publisherInstance = new Publisher();
+  }
+  return publisherInstance;
+}
+
+export default getPublisherInstance();

@@ -19,22 +19,23 @@ module NatsPubsub
       # Return a list of conflicts against other streams, per subject.
       # [{ name:'OTHER' pairs: [['a.b.*', 'a.b.c'], ...] }, ...]
       def overlaps(jts, target_name, new_subjects)
-        desired = Array(new_subjects).map!(&:to_s).uniq
+        desired = StreamSupport.normalize_subjects(new_subjects)
         streams = list_streams_with_subjects(jts)
-        others  = streams.reject { |s| s[:name] == target_name }
+        others  = streams.reject { |stream| stream[:name] == target_name }
 
-        others.filter_map do |s|
-          pairs = desired.flat_map do |n|
-            Array(s[:subjects]).map(&:to_s).select { |e| SubjectMatcher.overlap?(n, e) }
-                               .map { |e| [n, e] }
+        others.filter_map do |stream|
+          pairs = desired.flat_map do |desired_subject|
+            stream_subjects = StreamSupport.normalize_subjects(stream[:subjects])
+            stream_subjects.select { |existing_subject| SubjectMatcher.overlap?(desired_subject, existing_subject) }
+                          .map { |existing_subject| [desired_subject, existing_subject] }
           end
-          { name: s[:name], pairs: pairs } unless pairs.empty?
+          { name: stream[:name], pairs: pairs } unless pairs.empty?
         end
       end
 
       # Returns [allowed, blocked] given desired subjects.
       def partition_allowed(jts, target_name, desired_subjects)
-        desired   = Array(desired_subjects).map!(&:to_s).uniq
+        desired   = StreamSupport.normalize_subjects(desired_subjects)
         conflicts = overlaps(jts, target_name, desired)
         blocked   = conflicts.flat_map { |c| c[:pairs].map(&:first) }.uniq
         allowed   = desired - blocked
@@ -44,6 +45,8 @@ module NatsPubsub
       def allowed_subjects(jts, target_name, desired_subjects)
         partition_allowed(jts, target_name, desired_subjects).first
       end
+
+      private
 
       def list_streams_with_subjects(jts)
         list_stream_names(jts).map do |name|

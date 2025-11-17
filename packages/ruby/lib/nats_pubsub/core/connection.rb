@@ -39,11 +39,13 @@ module NatsPubsub
     end
 
     # Idempotent: returns an existing, healthy JetStream context or establishes one.
+    # NOTE: This method only establishes the connection. Topology setup is separate.
+    # Call NatsPubsub.ensure_topology! explicitly after connection if needed.
     def connect!
       return @jts if connected?
 
       servers = nats_servers
-      raise 'No NATS URLs configured' if servers.empty?
+      raise ConfigurationError, 'No NATS URLs configured' if servers.empty?
 
       establish_connection(servers)
 
@@ -52,9 +54,6 @@ module NatsPubsub
         "#{sanitize_urls(servers).join(', ')}",
         tag: 'NatsPubsub::Connection'
       )
-
-      # Ensure topology (streams, subjects, overlap guard, etc.)
-      Topology.ensure!(@jts)
 
       @jts
     end

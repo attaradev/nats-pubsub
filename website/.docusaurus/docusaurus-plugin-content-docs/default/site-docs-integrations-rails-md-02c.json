@@ -1,0 +1,25 @@
+{
+  "id": "integrations/rails",
+  "title": "Rails Integration Guide",
+  "description": "This comprehensive guide covers everything you need to integrate NatsPubsub into your Ruby on Rails application, from initial setup through production deployment.",
+  "source": "@site/docs/integrations/rails.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/rails",
+  "permalink": "/nats-pubsub/docs/integrations/rails",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/integrations/rails.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Event Sourcing Pattern",
+    "permalink": "/nats-pubsub/docs/patterns/event-sourcing"
+  },
+  "next": {
+    "title": "Express.js Integration Guide",
+    "permalink": "/nats-pubsub/docs/integrations/express"
+  }
+}

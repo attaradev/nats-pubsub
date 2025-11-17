@@ -1,0 +1,25 @@
+{
+  "id": "guides/performance",
+  "title": "Performance Optimization Guide",
+  "description": "This comprehensive guide covers performance optimization strategies for NatsPubsub applications, including batching, connection pooling, concurrent processing, memory optimization, benchmarking, and troubleshooting performance bottlenecks.",
+  "source": "@site/../docs/guides/performance.md",
+  "sourceDirName": "guides",
+  "slug": "/guides/performance",
+  "permalink": "/nats-pubsub/docs/guides/performance",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/guides/performance.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Deployment Guide",
+    "permalink": "/nats-pubsub/docs/guides/deployment"
+  },
+  "next": {
+    "title": "Inbox & Outbox Patterns",
+    "permalink": "/nats-pubsub/docs/patterns/inbox-outbox"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "troubleshooting/debugging",
+  "title": "Debugging Guide",
+  "description": "This comprehensive guide will help you debug issues with NatsPubsub, trace message flow, and diagnose problems in both development and production environments.",
+  "source": "@site/docs/troubleshooting/debugging.md",
+  "sourceDirName": "troubleshooting",
+  "slug": "/troubleshooting/debugging",
+  "permalink": "/nats-pubsub/docs/troubleshooting/debugging",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/troubleshooting/debugging.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Common Issues and Solutions",
+    "permalink": "/nats-pubsub/docs/troubleshooting/common-issues"
+  },
+  "next": {
+    "title": "Frequently Asked Questions (FAQ)",
+    "permalink": "/nats-pubsub/docs/troubleshooting/faq"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "reference/ruby-api",
+  "title": "Ruby API Reference",
+  "description": "Complete API reference for the NatsPubsub Ruby library.",
+  "source": "@site/docs/reference/ruby-api.md",
+  "sourceDirName": "reference",
+  "slug": "/reference/ruby-api",
+  "permalink": "/nats-pubsub/docs/reference/ruby-api",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/reference/ruby-api.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "JavaScript/TypeScript API Reference",
+    "permalink": "/nats-pubsub/docs/reference/javascript-api"
+  },
+  "next": {
+    "title": "Configuration Reference",
+    "permalink": "/nats-pubsub/docs/reference/configuration"
+  }
+}

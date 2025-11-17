@@ -1,0 +1,25 @@
+{
+  "id": "reference/cli",
+  "title": "CLI Reference",
+  "description": "Complete command-line interface reference for NatsPubsub (JavaScript/TypeScript and Ruby).",
+  "source": "@site/docs/reference/cli.md",
+  "sourceDirName": "reference",
+  "slug": "/reference/cli",
+  "permalink": "/nats-pubsub/docs/reference/cli",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/reference/cli.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Configuration Reference",
+    "permalink": "/nats-pubsub/docs/reference/configuration"
+  },
+  "next": {
+    "title": "NatsPubsub Architecture Guide",
+    "permalink": "/nats-pubsub/docs/advanced/architecture"
+  }
+}

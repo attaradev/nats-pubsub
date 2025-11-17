@@ -1,0 +1,25 @@
+{
+  "id": "getting-started/installation",
+  "title": "Installation",
+  "description": "This guide covers installing NatsPubsub in JavaScript/TypeScript and Ruby projects.",
+  "source": "@site/docs/getting-started/installation.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/installation",
+  "permalink": "/nats-pubsub/docs/getting-started/installation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/getting-started/installation.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Introduction to NatsPubsub",
+    "permalink": "/nats-pubsub/docs/getting-started/introduction"
+  },
+  "next": {
+    "title": "JavaScript/TypeScript Quick Start",
+    "permalink": "/nats-pubsub/docs/getting-started/quick-start-js"
+  }
+}

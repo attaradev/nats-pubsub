@@ -2,89 +2,9 @@
 
 require_relative '../core/logging'
 require_relative 'overlap_guard'
-require_relative 'subject_matcher'
+require_relative 'stream_support'
 
 module NatsPubsub
-  module StreamSupport
-    module_function
-
-    def normalize_subjects(list)
-      Array(list).flatten.compact.map!(&:to_s).reject(&:empty?).uniq
-    end
-
-    def missing_subjects(existing, desired)
-      desired.reject { |d| SubjectMatcher.covered?(existing, d) }
-    end
-
-    def stream_not_found?(error)
-      msg = error.message.to_s
-      msg =~ /stream\s+not\s+found/i || msg =~ /\b404\b/
-    end
-
-    def overlap_error?(error)
-      msg = error.message.to_s
-      msg =~ /subjects?\s+overlap/i || msg =~ /\berr_code=10065\b/ || msg =~ /\b400\b/
-    end
-
-    # ---- Logging ----
-    def log_already_covered(name)
-      Logging.info(
-        "Stream #{name} exists; subjects and config already covered.",
-        tag: 'NatsPubsub::Stream'
-      )
-    end
-
-    def log_all_blocked(name, blocked)
-      if blocked.any?
-        Logging.warn(
-          "Stream #{name}: all missing subjects belong to other streams; unchanged. blocked=#{blocked.inspect}",
-          tag: 'NatsPubsub::Stream'
-        )
-      else
-        Logging.info("Stream #{name} exists; nothing to add.", tag: 'NatsPubsub::Stream')
-      end
-    end
-
-    def log_updated(name, added, blocked)
-      msg = "Updated stream #{name}; added subjects=#{added.inspect}"
-      msg += " (skipped overlapped=#{blocked.inspect})" if blocked.any?
-      Logging.info(msg, tag: 'NatsPubsub::Stream')
-    end
-
-    def log_not_created(name, blocked)
-      Logging.warn(
-        "Not creating stream #{name}: all desired subjects belong to other streams. blocked=#{blocked.inspect}",
-        tag: 'NatsPubsub::Stream'
-      )
-    end
-
-    def log_created(name, allowed, blocked, retention, storage)
-      msg = [
-        "Created stream #{name}",
-        "subjects=#{allowed.inspect}",
-        "retention=#{retention.inspect}",
-        "storage=#{storage.inspect}"
-      ].join(' ')
-      msg += " (skipped overlapped=#{blocked.inspect})" if blocked.any?
-      Logging.info(msg, tag: 'NatsPubsub::Stream')
-    end
-
-    def log_config_updated(name, storage:)
-      Logging.info(
-        "Updated stream #{name} config; storage=#{storage.inspect}",
-        tag: 'NatsPubsub::Stream'
-      )
-    end
-
-    def log_retention_mismatch(name, have:, want:)
-      Logging.warn(
-        "Stream #{name} retention mismatch (have=#{have.inspect}, want=#{want.inspect}). " \
-        "Retention is immutable; skipping retention change.",
-        tag: 'NatsPubsub::Stream'
-      )
-    end
-  end
-
   # Ensures a stream exists and updates only uncovered subjects, using work-queue semantics.
   class Stream
     RETENTION = 'workqueue'

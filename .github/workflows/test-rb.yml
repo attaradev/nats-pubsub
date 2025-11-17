@@ -16,17 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Ruby ${{ matrix.ruby-version }}
-        uses: ruby/setup-ruby@v1
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
-          working-directory: packages/ruby
-          rubygems: latest
-
-      - name: Install dependencies
-        working-directory: packages/ruby
-        run: bundle install
 
       - name: Run RuboCop
         working-directory: packages/ruby

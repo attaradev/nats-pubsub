@@ -35,16 +35,18 @@ Gem::Specification.new do |spec|
   }
 
   # Safer file list
-  spec.files = Dir.glob('{lib,README*,CHANGELOG*,LICENSE*}/**/*', File::FNM_DOTMATCH)
+  spec.files = Dir.glob('{lib,exe,README*,CHANGELOG*,LICENSE*}/**/*', File::FNM_DOTMATCH)
                   .select { |f| File.file?(f) }
                   .reject { |f| f.start_with?('spec/', '.') }
 
+  spec.bindir = 'exe'
+  spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
   # ---- Runtime dependencies ----
   spec.add_dependency 'activerecord',  '>= 6.0', '< 9'
   spec.add_dependency 'activesupport', '>= 6.0', '< 9'
   spec.add_dependency 'nats-pure',     '~> 2.5'
-  spec.add_dependency 'oj', '>= 3.16'
-  spec.add_dependency 'sinatra', '>= 3', '< 5' # For Web UI
+  spec.add_dependency 'oj',            '~> 3.16'
+  spec.add_dependency 'sinatra',       '>= 3', '< 5' # For Web UI
 end

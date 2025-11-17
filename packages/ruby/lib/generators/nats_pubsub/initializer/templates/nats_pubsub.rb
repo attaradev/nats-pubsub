@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Jetstream Bridge configuration
+# NatsPubsub configuration
 NatsPubsub.configure do |config|
   # NATS Connection
   config.nats_urls       = ENV.fetch('NATS_URLS', 'nats://localhost:4222')

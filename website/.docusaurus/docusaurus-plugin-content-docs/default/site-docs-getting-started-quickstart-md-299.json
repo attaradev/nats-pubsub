@@ -1,0 +1,16 @@
+{
+  "id": "getting-started/quickstart",
+  "title": "Quick Start Guide",
+  "description": "Get started with NatsPubsub in under 10 minutes. This guide covers the basics for both JavaScript/TypeScript and Ruby implementations.",
+  "source": "@site/../docs/getting-started/quickstart.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/quickstart",
+  "permalink": "/nats-pubsub/docs/getting-started/quickstart",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/getting-started/quickstart.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

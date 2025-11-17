@@ -1,0 +1,25 @@
+{
+  "id": "integrations/express",
+  "title": "Express.js Integration Guide",
+  "description": "This comprehensive guide covers integrating NatsPubsub into your Express.js application, from basic setup through production deployment with TypeScript support.",
+  "source": "@site/../docs/integrations/express.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/express",
+  "permalink": "/nats-pubsub/docs/integrations/express",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/integrations/express.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Rails Integration Guide",
+    "permalink": "/nats-pubsub/docs/integrations/rails"
+  },
+  "next": {
+    "title": "NestJS Integration Guide",
+    "permalink": "/nats-pubsub/docs/integrations/nestjs"
+  }
+}

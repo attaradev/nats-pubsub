@@ -1,0 +1,16 @@
+{
+  "id": "advanced/observability",
+  "title": "Observability",
+  "description": "Comprehensive guide to observability in NatsPubsub applications, covering logs, metrics, and distributed tracing with OpenTelemetry integration for production-grade monitoring.",
+  "source": "@site/../docs/advanced/observability.md",
+  "sourceDirName": "advanced",
+  "slug": "/advanced/observability",
+  "permalink": "/nats-pubsub/docs/advanced/observability",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/advanced/observability.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

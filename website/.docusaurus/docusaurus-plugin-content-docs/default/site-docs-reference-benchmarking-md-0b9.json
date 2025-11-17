@@ -1,0 +1,16 @@
+{
+  "id": "reference/benchmarking",
+  "title": "Benchmarking Reference",
+  "description": "Placeholder summarizing methodology for measuring publish/subscribe throughput, latency distributions, and tuning parameters.",
+  "source": "@site/../docs/reference/benchmarking.md",
+  "sourceDirName": "reference",
+  "slug": "/reference/benchmarking",
+  "permalink": "/nats-pubsub/docs/reference/benchmarking",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/reference/benchmarking.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

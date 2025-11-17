@@ -1,0 +1,27 @@
+# frozen_string_literal: true
+
+require 'bundler/gem_tasks'
+require 'rspec/core/rake_task'
+require 'rubocop/rake_task'
+
+RSpec::Core::RakeTask.new(:spec)
+RuboCop::RakeTask.new
+
+desc 'Run all tests and linters'
+task default: %i[spec rubocop]
+
+desc 'Run RuboCop with auto-correct'
+task :rubocop_autocorrect do
+  sh 'bundle exec rubocop -A'
+end
+
+desc 'Check for security vulnerabilities'
+task :audit do
+  sh 'bundle exec bundle-audit check --update'
+end
+
+desc 'Run specs with coverage'
+task :coverage do
+  ENV['COVERAGE'] = 'true'
+  Rake::Task['spec'].invoke
+end

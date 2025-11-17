@@ -1,0 +1,25 @@
+{
+  "id": "getting-started/quick-start-ruby",
+  "title": "Ruby Quick Start",
+  "description": "Get up and running with NatsPubsub in 5 minutes.",
+  "source": "@site/docs/getting-started/quick-start-ruby.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/quick-start-ruby",
+  "permalink": "/nats-pubsub/docs/getting-started/quick-start-ruby",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/getting-started/quick-start-ruby.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "JavaScript/TypeScript Quick Start",
+    "permalink": "/nats-pubsub/docs/getting-started/quick-start-js"
+  },
+  "next": {
+    "title": "Core Concepts",
+    "permalink": "/nats-pubsub/docs/getting-started/concepts"
+  }
+}

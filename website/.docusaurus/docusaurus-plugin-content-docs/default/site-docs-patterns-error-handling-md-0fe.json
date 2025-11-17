@@ -1,0 +1,16 @@
+{
+  "id": "patterns/error-handling",
+  "title": "Error Handling Strategies",
+  "description": "This comprehensive guide covers error handling patterns and strategies in NatsPubsub for building resilient, fault-tolerant message-driven applications.",
+  "source": "@site/../docs/patterns/error-handling.md",
+  "sourceDirName": "patterns",
+  "slug": "/patterns/error-handling",
+  "permalink": "/nats-pubsub/docs/patterns/error-handling",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/patterns/error-handling.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

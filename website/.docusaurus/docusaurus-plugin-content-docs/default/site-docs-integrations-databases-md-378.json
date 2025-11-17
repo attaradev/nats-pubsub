@@ -1,0 +1,25 @@
+{
+  "id": "integrations/databases",
+  "title": "Database Integration Guide",
+  "description": "This comprehensive guide covers integrating NatsPubsub with various databases, focusing on Inbox/Outbox pattern implementation, migrations, connection pooling, and best practices for reliable event-driven architecture.",
+  "source": "@site/../docs/integrations/databases.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/databases",
+  "permalink": "/nats-pubsub/docs/integrations/databases",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/integrations/databases.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "NestJS Integration Guide",
+    "permalink": "/nats-pubsub/docs/integrations/nestjs"
+  },
+  "next": {
+    "title": "JavaScript/TypeScript API Reference",
+    "permalink": "/nats-pubsub/docs/reference/javascript-api"
+  }
+}

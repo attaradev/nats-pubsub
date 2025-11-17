@@ -1,0 +1,25 @@
+{
+  "id": "guides/subscribing",
+  "title": "Subscribing to Messages Guide",
+  "description": "This comprehensive guide covers everything you need to know about creating and managing subscribers in NatsPubsub, from basic subscriptions to advanced patterns with error handling, middleware, and production best practices.",
+  "source": "@site/docs/guides/subscribing.md",
+  "sourceDirName": "guides",
+  "slug": "/guides/subscribing",
+  "permalink": "/nats-pubsub/docs/guides/subscribing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs/guides/subscribing.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Publishing Messages Guide",
+    "permalink": "/nats-pubsub/docs/guides/publishing"
+  },
+  "next": {
+    "title": "Middleware System Guide",
+    "permalink": "/nats-pubsub/docs/guides/middleware"
+  }
+}

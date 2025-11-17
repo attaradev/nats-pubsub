@@ -84,7 +84,7 @@ describe('DlqConsumer', () => {
     });
 
     it('should process DLQ message and store it in memory', async () => {
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       const messages = dlqConsumer.getMessages();
       expect(messages).toHaveLength(1);
@@ -95,7 +95,7 @@ describe('DlqConsumer', () => {
     });
 
     it('should log warning when message received in DLQ', async () => {
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Message received in DLQ',
@@ -109,12 +109,12 @@ describe('DlqConsumer', () => {
 
     it('should update existing message with new last_seen time', async () => {
       const firstCallTime = new Date();
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       const messages = dlqConsumer.getMessages();
       expect(messages).toHaveLength(1);
@@ -122,14 +122,14 @@ describe('DlqConsumer', () => {
     });
 
     it('should preserve first_seen time when updating existing message', async () => {
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
       const firstMessage = dlqConsumer.getMessages()[0];
       const originalFirstSeen = firstMessage.first_seen;
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
       const updatedMessage = dlqConsumer.getMessages()[0];
 
       expect(updatedMessage.first_seen).toEqual(originalFirstSeen);
@@ -137,7 +137,7 @@ describe('DlqConsumer', () => {
 
     it('should persist message to store if configured', async () => {
       const consumerWithStore = new DlqConsumer(mockStore);
-      await consumerWithStore.call(event, metadata);
+      await consumerWithStore.handle(event, metadata);
 
       expect(mockStore.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -152,7 +152,7 @@ describe('DlqConsumer', () => {
       mockStore.save.mockRejectedValueOnce(new Error('Database error'));
       const consumerWithStore = new DlqConsumer(mockStore);
 
-      await consumerWithStore.call(event, metadata);
+      await consumerWithStore.handle(event, metadata);
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to persist DLQ message',
@@ -174,7 +174,7 @@ describe('DlqConsumer', () => {
       dlqConsumer.addHandler(handler1);
       dlqConsumer.addHandler(handler2);
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       expect(handler1.handle).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -192,7 +192,7 @@ describe('DlqConsumer', () => {
 
       dlqConsumer.addHandler(failingHandler);
 
-      await expect(dlqConsumer.call(event, metadata)).resolves.not.toThrow();
+      await expect(dlqConsumer.handle(event, metadata)).resolves.not.toThrow();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'DLQ handler failed',
@@ -214,7 +214,7 @@ describe('DlqConsumer', () => {
       dlqConsumer.addHandler(failingHandler);
       dlqConsumer.addHandler(successHandler);
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       expect(failingHandler.handle).toHaveBeenCalled();
       expect(successHandler.handle).toHaveBeenCalled();
@@ -241,8 +241,8 @@ describe('DlqConsumer', () => {
         action: 'updated',
       };
 
-      await dlqConsumer.call(event1, metadata1);
-      await dlqConsumer.call(event2, metadata2);
+      await dlqConsumer.handle(event1, metadata1);
+      await dlqConsumer.handle(event2, metadata2);
 
       const messages = dlqConsumer.getMessages();
       expect(messages).toHaveLength(2);
@@ -267,7 +267,7 @@ describe('DlqConsumer', () => {
         action: 'created',
       };
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
 
       const message = dlqConsumer.getMessage('event-123');
       expect(message).toBeDefined();
@@ -291,7 +291,7 @@ describe('DlqConsumer', () => {
         action: 'created',
       };
 
-      await dlqConsumer.call(event, metadata);
+      await dlqConsumer.handle(event, metadata);
       expect(dlqConsumer.getMessages()).toHaveLength(1);
 
       dlqConsumer.clearMessages();
@@ -319,8 +319,8 @@ describe('DlqConsumer', () => {
         action: 'placed',
       };
 
-      await dlqConsumer.call(event1, metadata1);
-      await dlqConsumer.call(event2, metadata2);
+      await dlqConsumer.handle(event1, metadata1);
+      await dlqConsumer.handle(event2, metadata2);
 
       const stats = dlqConsumer.getStatistics();
       expect(stats.total).toBe(2);

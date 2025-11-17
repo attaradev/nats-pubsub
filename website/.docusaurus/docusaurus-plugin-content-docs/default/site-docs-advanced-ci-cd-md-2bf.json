@@ -1,0 +1,16 @@
+{
+  "id": "advanced/ci-cd",
+  "title": "CI/CD Integration Guide",
+  "description": "This comprehensive guide covers integrating NatsPubsub applications into CI/CD pipelines, including GitHub Actions, GitLab CI, Jenkins, and CircleCI examples for both JavaScript and Ruby projects.",
+  "source": "@site/../docs/advanced/ci-cd.md",
+  "sourceDirName": "advanced",
+  "slug": "/advanced/ci-cd",
+  "permalink": "/nats-pubsub/docs/advanced/ci-cd",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/advanced/ci-cd.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {}
+}

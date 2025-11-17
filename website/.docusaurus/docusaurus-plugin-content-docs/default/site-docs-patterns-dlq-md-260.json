@@ -1,0 +1,25 @@
+{
+  "id": "patterns/dlq",
+  "title": "Dead Letter Queue (DLQ) Pattern",
+  "description": "This comprehensive guide covers the Dead Letter Queue (DLQ) pattern in NatsPubsub for handling failed messages and implementing robust error recovery strategies.",
+  "source": "@site/../docs/patterns/dlq.md",
+  "sourceDirName": "patterns",
+  "slug": "/patterns/dlq",
+  "permalink": "/nats-pubsub/docs/patterns/dlq",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/patterns/dlq.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Inbox & Outbox Patterns",
+    "permalink": "/nats-pubsub/docs/patterns/inbox-outbox"
+  },
+  "next": {
+    "title": "Schema Validation Pattern",
+    "permalink": "/nats-pubsub/docs/patterns/schema-validation"
+  }
+}

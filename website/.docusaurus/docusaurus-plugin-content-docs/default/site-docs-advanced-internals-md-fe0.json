@@ -1,0 +1,25 @@
+{
+  "id": "advanced/internals",
+  "title": "NatsPubsub Internals",
+  "description": "This comprehensive guide provides a deep dive into the internal workings of NatsPubsub, including publishing mechanisms, subscribing mechanics, message formats, acknowledgment protocols, and performance optimizations.",
+  "source": "@site/../docs/advanced/internals.md",
+  "sourceDirName": "advanced",
+  "slug": "/advanced/internals",
+  "permalink": "/nats-pubsub/docs/advanced/internals",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/advanced/internals.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "NatsPubsub Architecture Guide",
+    "permalink": "/nats-pubsub/docs/advanced/architecture"
+  },
+  "next": {
+    "title": "Custom Repository Implementation Guide",
+    "permalink": "/nats-pubsub/docs/advanced/custom-repositories"
+  }
+}

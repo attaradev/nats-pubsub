@@ -1,0 +1,25 @@
+{
+  "id": "advanced/custom-repositories",
+  "title": "Custom Repository Implementation Guide",
+  "description": "This comprehensive guide covers implementing custom repositories for NatsPubsub's Inbox and Outbox patterns, including interfaces, implementations for various databases, and best practices.",
+  "source": "@site/../docs/advanced/custom-repositories.md",
+  "sourceDirName": "advanced",
+  "slug": "/advanced/custom-repositories",
+  "permalink": "/nats-pubsub/docs/advanced/custom-repositories",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/advanced/custom-repositories.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": 1539502055000,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "NatsPubsub Internals",
+    "permalink": "/nats-pubsub/docs/advanced/internals"
+  },
+  "next": {
+    "title": "Security Best Practices for NatsPubsub",
+    "permalink": "/nats-pubsub/docs/advanced/security"
+  }
+}

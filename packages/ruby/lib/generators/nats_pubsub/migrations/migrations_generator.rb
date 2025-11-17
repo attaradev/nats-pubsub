@@ -5,7 +5,28 @@ require 'rails/generators/active_record'
 
 module NatsPubsub
   module Generators
-    # Migrations generator.
+    # Migrations generator that creates Inbox and Outbox event tables
+    #
+    # Usage:
+    #   rails generate nats_pubsub:migrations
+    #
+    # This will create:
+    #   db/migrate/[timestamp]_create_nats_pubsub_outbox.rb
+    #   db/migrate/[timestamp]_create_nats_pubsub_inbox.rb
+    #
+    # The outbox table stores events to be published to NATS:
+    #   - Implements transactional outbox pattern
+    #   - Tracks publishing status and attempts
+    #   - Provides at-least-once delivery guarantee
+    #
+    # The inbox table stores received events from NATS:
+    #   - Prevents duplicate processing
+    #   - Tracks processing status
+    #   - Supports idempotency via event_id
+    #
+    # Example:
+    #   rails generate nats_pubsub:migrations
+    #   rake db:migrate
     class MigrationsGenerator < Rails::Generators::Base
       include Rails::Generators::Migration
 
@@ -13,17 +34,25 @@ module NatsPubsub
       desc 'Creates Inbox/Outbox migrations for NatsPubsub'
 
       def create_outbox_migration
-        name = 'create_jetstream_outbox_events'
+        name = 'create_nats_pubsub_outbox'
         return say_status :skip, "migration #{name} already exists", :yellow if migration_exists?('db/migrate', name)
 
-        migration_template 'create_jetstream_outbox_events.rb.erb', "db/migrate/#{name}.rb"
+        migration_template 'create_nats_pubsub_outbox.rb.erb', "db/migrate/#{name}.rb"
+        say_status :created, "db/migrate/#{name}.rb", :green
+      rescue StandardError => e
+        say_status :error, "Failed to create outbox migration: #{e.message}", :red
+        raise
       end
 
       def create_inbox_migration
-        name = 'create_jetstream_inbox_events'
+        name = 'create_nats_pubsub_inbox'
         return say_status :skip, "migration #{name} already exists", :yellow if migration_exists?('db/migrate', name)
 
-        migration_template 'create_jetstream_inbox_events.rb.erb', "db/migrate/#{name}.rb"
+        migration_template 'create_nats_pubsub_inbox.rb.erb', "db/migrate/#{name}.rb"
+        say_status :created, "db/migrate/#{name}.rb", :green
+      rescue StandardError => e
+        say_status :error, "Failed to create inbox migration: #{e.message}", :red
+        raise
       end
 
       # -- Rails::Generators::Migration plumbing --

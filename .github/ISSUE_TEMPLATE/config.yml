@@ -1,8 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: Question or Discussion
+  - name: 💬 GitHub Discussions
     url: https://github.com/attaradev/nats_pubsub/discussions
-    about: Ask questions or discuss ideas
-  - name: Security Issue
-    url: https://github.com/attaradev/nats_pubsub/security/advisories/new
-    about: Report a security vulnerability privately
+    about: Ask questions and discuss ideas with the community
+  - name: 📚 Documentation
+    url: https://github.com/attaradev/nats_pubsub#readme
+    about: Read the documentation for usage guides and API reference

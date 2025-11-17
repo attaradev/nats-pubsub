@@ -1,4 +1,4 @@
-import { BaseSubscriber } from '../subscriber';
+import { Subscriber } from '../subscribers/subscriber';
 import { EventMetadata } from '../types';
 import config from '../core/config';
 
@@ -35,7 +35,7 @@ export interface PersistentDlqStore {
  * Dead Letter Queue Consumer
  * Subscribes to DLQ subject and handles poison messages
  */
-export class DlqConsumer extends BaseSubscriber {
+export class DlqConsumer extends Subscriber {
   private config: typeof config;
   private handlers: DlqHandler[] = [];
   private messages: Map<string, DlqMessage> = new Map();
@@ -57,7 +57,7 @@ export class DlqConsumer extends BaseSubscriber {
   /**
    * Process DLQ messages
    */
-  async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
+  async handle(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
     const dlqMessage: DlqMessage = {
       event_id: metadata.event_id,
       original_subject: metadata.subject,
@@ -198,7 +198,8 @@ export class AlertDlqHandler implements DlqHandler {
     }
 
     if ((message.deliveries || 0) >= this.alertThreshold) {
-      // TODO: Integrate with alerting service (PagerDuty, Slack, etc.)
+      // Note: Integrate with your alerting service (e.g., PagerDuty, Slack, Datadog)
+      // This is a placeholder implementation - replace with your monitoring system
       console.error(
         `ALERT: Message ${message.event_id} exceeded ${this.alertThreshold} deliveries`
       );
@@ -212,8 +213,14 @@ export class AlertDlqHandler implements DlqHandler {
  */
 export class StorageDlqHandler implements DlqHandler {
   async handle(message: DlqMessage): Promise<void> {
-    // TODO: Implement database storage
-    // Example: await db.dlq_messages.insert(message);
+    // Note: Implement database storage for your persistence layer
+    // Example implementation:
+    //   await db.dlq_messages.insert({
+    //     event_id: message.event_id,
+    //     payload: message.payload,
+    //     error: message.error,
+    //     created_at: new Date()
+    //   });
     console.log(`Storing DLQ message ${message.event_id} for manual review`);
   }
 }

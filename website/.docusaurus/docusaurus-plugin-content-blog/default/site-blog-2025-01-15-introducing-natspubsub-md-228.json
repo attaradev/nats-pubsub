@@ -1,0 +1,40 @@
+{
+  "permalink": "/nats-pubsub/blog/introducing-natspubsub-1.0",
+  "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/website/blog/2025-01-15-introducing-natspubsub.md",
+  "source": "@site/blog/2025-01-15-introducing-natspubsub.md",
+  "title": "Introducing NatsPubsub 1.0",
+  "description": "We're excited to announce the release of NatsPubsub 1.0, a production-ready pub/sub messaging library for NATS JetStream!",
+  "date": "2025-01-15T00:00:00.000Z",
+  "tags": [
+    {
+      "inline": true,
+      "label": "announcement",
+      "permalink": "/nats-pubsub/blog/tags/announcement"
+    },
+    {
+      "inline": true,
+      "label": "release",
+      "permalink": "/nats-pubsub/blog/tags/release"
+    }
+  ],
+  "readingTime": 2.12,
+  "hasTruncateMarker": true,
+  "authors": [
+    {
+      "name": "Mike Attara",
+      "title": "NatsPubsub Maintainer",
+      "url": "https://github.com/attaradev",
+      "email": "mpyebattara@gmail.com",
+      "imageURL": "https://github.com/attaradev.png",
+      "key": "mike",
+      "page": null
+    }
+  ],
+  "frontMatter": {
+    "slug": "introducing-natspubsub-1.0",
+    "title": "Introducing NatsPubsub 1.0",
+    "authors": ["mike"],
+    "tags": ["announcement", "release"]
+  },
+  "unlisted": false
+}

@@ -5,7 +5,7 @@ PATH
       activerecord (>= 6.0, < 9)
       activesupport (>= 6.0, < 9)
       nats-pure (~> 2.5)
-      oj (>= 3.16)
+      oj (~> 3.16)
       sinatra (>= 3, < 5)
 
 GEM

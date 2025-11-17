@@ -1,0 +1,52 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#1a1a1a"/>
+
+  <!-- Brand color accent -->
+  <rect x="0" y="0" width="1200" height="8" fill="#27c9b6"/>
+  <rect x="0" y="622" width="1200" height="8" fill="#27c9b6"/>
+
+  <!-- Logo -->
+  <g transform="translate(150, 315)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#27c9b6" stroke-width="4"/>
+
+    <!-- Connection nodes -->
+    <circle cx="0" cy="-57" r="14" fill="#27c9b6"/>
+    <circle cx="49" cy="-28" r="14" fill="#20a89a"/>
+    <circle cx="49" cy="28" r="14" fill="#1a8778"/>
+    <circle cx="0" cy="57" r="14" fill="#27c9b6"/>
+    <circle cx="-49" cy="28" r="14" fill="#20a89a"/>
+    <circle cx="-49" cy="-28" r="14" fill="#1a8778"/>
+
+    <!-- Center hub -->
+    <circle cx="0" cy="0" r="30" fill="#27c9b6"/>
+
+    <!-- Connection lines -->
+    <line x1="0" y1="-57" x2="0" y2="-30" stroke="#27c9b6" stroke-width="3" opacity="0.6"/>
+    <line x1="49" y1="-28" x2="25" y2="-15" stroke="#20a89a" stroke-width="3" opacity="0.6"/>
+    <line x1="49" y1="28" x2="25" y2="15" stroke="#1a8778" stroke-width="3" opacity="0.6"/>
+    <line x1="0" y1="57" x2="0" y2="30" stroke="#27c9b6" stroke-width="3" opacity="0.6"/>
+    <line x1="-49" y1="28" x2="-25" y2="15" stroke="#20a89a" stroke-width="3" opacity="0.6"/>
+    <line x1="-49" y1="-28" x2="-25" y2="-15" stroke="#1a8778" stroke-width="3" opacity="0.6"/>
+
+    <!-- N letter -->
+    <text x="0" y="12" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">N</text>
+  </g>
+
+  <!-- Title -->
+  <text x="350" y="280" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">NatsPubsub</text>
+
+  <!-- Tagline -->
+  <text x="350" y="350" font-family="Arial, sans-serif" font-size="32" fill="#cccccc">Production-ready pub/sub messaging</text>
+  <text x="350" y="390" font-family="Arial, sans-serif" font-size="32" fill="#cccccc">for NATS JetStream</text>
+
+  <!-- Language badges -->
+  <g transform="translate(350, 450)">
+    <rect x="0" y="0" width="180" height="50" rx="8" fill="#27c9b6"/>
+    <text x="90" y="32" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">TypeScript</text>
+
+    <rect x="200" y="0" width="130" height="50" rx="8" fill="#CC342D"/>
+    <text x="265" y="32" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">Ruby</text>
+  </g>
+</svg>

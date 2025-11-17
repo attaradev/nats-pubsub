@@ -2,118 +2,148 @@
 # Ruby Version Sync Script
 # Syncs Ruby version from changesets or validates manual version updates
 
-set -e
-
+# Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RUBY_VERSION_FILE="$ROOT_DIR/packages/ruby/lib/nats_pubsub/version.rb"
-RUBY_CHANGELOG="$ROOT_DIR/packages/ruby/CHANGELOG.md"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
-echo "🔍 Ruby Version Sync & Validation"
-echo "=================================="
-echo ""
+# Main function
+main() {
+  ensure_repo_root || exit 1
 
-# Extract current Ruby version
-get_ruby_version() {
-  if [ -f "$RUBY_VERSION_FILE" ]; then
-    grep -oP "VERSION = '\K[^']+" "$RUBY_VERSION_FILE" || echo "0.0.0"
+  print_header "🔍 Ruby Version Sync & Validation"
+
+  local current_version
+  current_version=$(get_ruby_version)
+
+  echo "Current version: $current_version"
+  echo ""
+
+  # Validate semver format
+  if ! validate_semver "$current_version"; then
+    exit 1
+  fi
+
+  # Run appropriate validation based on environment
+  if [ -n "${CI:-}" ]; then
+    validate_ci_environment "$current_version"
   else
-    echo "0.0.0"
+    validate_local_environment "$current_version"
+  fi
+
+  print_version_summary "$current_version"
+}
+
+# Validate in CI environment
+validate_ci_environment() {
+  local current_version=$1
+
+  echo "Running in CI environment"
+  echo ""
+
+  # Get previous version from git
+  if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+    log_warning "No previous commit found, skipping version comparison"
+    return
+  fi
+
+  local prev_version
+  prev_version=$(get_previous_ruby_version)
+  echo "Previous version: $prev_version"
+
+  # Check if version changed
+  if [ "$current_version" = "$prev_version" ]; then
+    log_info "Version unchanged, no release needed"
+    return
+  fi
+
+  log_success "Version changed: $prev_version → $current_version"
+
+  # Validate version bump
+  if ! version_gt "$current_version" "$prev_version"; then
+    log_error "New version must be greater than previous version"
+    exit 1
+  fi
+
+  # Check if version exists on RubyGems
+  check_rubygems_availability "$current_version" || exit 1
+
+  # Check if CHANGELOG updated
+  check_changelog_updated "$current_version"
+
+  echo ""
+  log_success "Ruby version validation passed!"
+  echo "Ready to release ruby-v$current_version"
+}
+
+# Validate in local environment
+validate_local_environment() {
+  local current_version=$1
+
+  echo "Running locally"
+  echo ""
+
+  # Check if version is valid
+  log_success "Version format is valid"
+
+  # Optionally check RubyGems
+  if require_command gem >/dev/null 2>&1; then
+    check_rubygems_availability "$current_version" || true
   fi
 }
 
-# Validate semver format
-validate_semver() {
-  local version=$1
-  if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
-    echo "❌ Invalid semver format: $version"
-    return 1
-  fi
-  return 0
+# Get previous Ruby version from git
+get_previous_ruby_version() {
+  git show HEAD~1:"$RUBY_VERSION_FILE" 2>/dev/null | \
+    grep -oP "VERSION = '\K[^']+" || echo "0.0.0"
 }
 
 # Check if version exists on RubyGems
-check_rubygems_version() {
+check_rubygems_availability() {
   local version=$1
+
+  if ! require_command gem >/dev/null 2>&1; then
+    log_warning "gem command not available, skipping RubyGems check"
+    return 0
+  fi
+
   echo "Checking RubyGems for version $version..."
 
-  if gem list -r nats_pubsub --exact | grep -q "($version)"; then
-    echo "⚠️  Version $version already exists on RubyGems"
+  if gem list -r nats_pubsub --exact 2>/dev/null | grep -q "($version)"; then
+    log_error "Version $version already exists on RubyGems"
+    log_error "Cannot release: version already published"
     return 1
   else
-    echo "✅ Version $version is available"
+    log_success "Version $version is available"
     return 0
   fi
 }
 
-# Compare versions (returns 0 if v1 > v2)
-version_gt() {
-  test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"
+# Check if CHANGELOG was updated for the version
+check_changelog_updated() {
+  local version=$1
+
+  if [ ! -f "$RUBY_CHANGELOG" ]; then
+    log_warning "CHANGELOG.md not found"
+    return
+  fi
+
+  if git diff HEAD~1 HEAD -- "$RUBY_CHANGELOG" 2>/dev/null | grep -q "^+.*$version"; then
+    log_success "CHANGELOG.md updated for version $version"
+  else
+    log_warning "CHANGELOG.md may not be updated for version $version"
+  fi
 }
 
-# Main validation
-CURRENT_VERSION=$(get_ruby_version)
-echo "Current version: $CURRENT_VERSION"
-echo ""
+# Print version summary
+print_version_summary() {
+  local version=$1
 
-# Validate semver
-if ! validate_semver "$CURRENT_VERSION"; then
-  exit 1
-fi
+  echo ""
+  echo "=================================="
+  echo "Version: $version"
+  echo "=================================="
+}
 
-# Check if this is a CI environment
-if [ -n "$CI" ]; then
-  echo "Running in CI environment"
-
-  # Get previous version from git
-  if git rev-parse HEAD~1 >/dev/null 2>&1; then
-    PREV_VERSION=$(git show HEAD~1:"$RUBY_VERSION_FILE" 2>/dev/null | grep -oP "VERSION = '\K[^']+" || echo "0.0.0")
-    echo "Previous version: $PREV_VERSION"
-
-    # Check if version changed
-    if [ "$CURRENT_VERSION" != "$PREV_VERSION" ]; then
-      echo "✅ Version changed: $PREV_VERSION → $CURRENT_VERSION"
-
-      # Validate version bump
-      if ! version_gt "$CURRENT_VERSION" "$PREV_VERSION"; then
-        echo "❌ New version must be greater than previous version"
-        exit 1
-      fi
-
-      # Check if version exists on RubyGems
-      if ! check_rubygems_version "$CURRENT_VERSION"; then
-        echo "❌ Cannot release: version already published"
-        exit 1
-      fi
-
-      # Check if CHANGELOG updated
-      if git diff HEAD~1 HEAD -- "$RUBY_CHANGELOG" | grep -q "^+.*$CURRENT_VERSION"; then
-        echo "✅ CHANGELOG.md updated for version $CURRENT_VERSION"
-      else
-        echo "⚠️  Warning: CHANGELOG.md may not be updated for version $CURRENT_VERSION"
-      fi
-
-      echo ""
-      echo "✅ Ruby version validation passed!"
-      echo "Ready to release ruby-v$CURRENT_VERSION"
-
-    else
-      echo "ℹ️  Version unchanged, no release needed"
-    fi
-  fi
-else
-  echo "Running locally"
-
-  # Check if version is valid
-  echo "✅ Version format is valid"
-
-  # Optionally check RubyGems
-  if command -v gem >/dev/null 2>&1; then
-    check_rubygems_version "$CURRENT_VERSION" || true
-  fi
-fi
-
-echo ""
-echo "=================================="
-echo "Version: $CURRENT_VERSION"
-echo "=================================="
+# Run main function
+main "$@"

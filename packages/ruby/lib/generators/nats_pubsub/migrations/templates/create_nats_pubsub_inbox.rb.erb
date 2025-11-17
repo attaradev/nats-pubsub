@@ -1,0 +1,88 @@
+# frozen_string_literal: true
+
+class CreateNatsPubsubInbox < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  # Disable DDL transaction for concurrent index creation
+  disable_ddl_transaction!
+
+  def up
+    # Idempotency check - safe to run multiple times
+    return if table_exists?(:nats_pubsub_inbox)
+
+    create_table :nats_pubsub_inbox do |t|
+      t.string   :event_id                              # preferred dedupe key
+      t.string   :subject,     null: false
+      t.jsonb    :payload,     null: false, default: {}
+      t.jsonb    :headers,     null: false, default: {}
+      t.string   :stream
+      t.bigint   :stream_seq
+      t.integer  :deliveries
+      t.string   :status,      null: false, default: 'received' # received|processing|processed|failed
+      t.text     :last_error
+      t.datetime :received_at
+      t.datetime :processed_at
+      t.timestamps
+    end
+
+    # Add indexes concurrently to avoid table locks
+    # Partial unique index on event_id (when not null)
+    add_index :nats_pubsub_inbox, :event_id,
+              unique: true,
+              where: 'event_id IS NOT NULL',
+              algorithm: :concurrently,
+              if_not_exists: true
+
+    # Partial unique index on stream + stream_seq (when not null)
+    add_index :nats_pubsub_inbox, [:stream, :stream_seq],
+              unique: true,
+              where: 'stream IS NOT NULL AND stream_seq IS NOT NULL',
+              algorithm: :concurrently,
+              if_not_exists: true,
+              name: 'index_inbox_on_stream_and_seq'
+
+    # Index on status for filtering
+    add_index :nats_pubsub_inbox, :status,
+              algorithm: :concurrently,
+              if_not_exists: true
+
+    # Composite index for common queries (status + received_at)
+    add_index :nats_pubsub_inbox, [:status, :received_at],
+              algorithm: :concurrently,
+              if_not_exists: true,
+              name: 'index_inbox_on_status_and_received'
+
+    # Partial index for failed events
+    add_index :nats_pubsub_inbox, [:deliveries, :last_error],
+              where: "status = 'failed'",
+              algorithm: :concurrently,
+              if_not_exists: true,
+              name: 'index_inbox_failed_deliveries'
+
+    # Partial index for processed events (for cleanup)
+    add_index :nats_pubsub_inbox, :processed_at,
+              where: "status = 'processed'",
+              algorithm: :concurrently,
+              if_not_exists: true,
+              name: 'index_inbox_processed_at'
+
+    # GIN index for JSONB payload queries (PostgreSQL only)
+    if ActiveRecord::Base.connection.adapter_name.downcase.include?('postgres')
+      add_index :nats_pubsub_inbox, :payload,
+                using: :gin,
+                algorithm: :concurrently,
+                if_not_exists: true,
+                name: 'index_inbox_payload_gin'
+    end
+
+    # Database-level constraint for status values
+    execute <<-SQL
+      ALTER TABLE nats_pubsub_inbox
+      ADD CONSTRAINT check_inbox_status_values
+      CHECK (status IN ('received', 'processing', 'processed', 'failed'))
+    SQL
+  end
+
+  def down
+    # Safe rollback with checks
+    drop_table :nats_pubsub_inbox if table_exists?(:nats_pubsub_inbox)
+  end
+end
