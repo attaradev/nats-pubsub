@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     outputs:
       version_changed: ${{ steps.check_version.outputs.version_changed }}
       version: ${{ steps.check_version.outputs.version }}
@@ -112,18 +112,20 @@ jobs:
       - name: Check JavaScript version changes
         id: check_version
         run: |
-          # Check if package.json was updated in the last commit
-          if git diff HEAD~1 HEAD -- packages/javascript/package.json | grep -q '"version"'; then
-            JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
+          JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
 
-            # Check if this version tag already exists
-            if git tag | grep -q "^javascript-v${JS_VERSION}$"; then
+          # Check if package.json was updated in the last commit OR if workflow_dispatch
+          VERSION_IN_COMMIT=$(git diff HEAD~1 HEAD -- packages/javascript/package.json | grep -q '"version"' && echo "true" || echo "false")
+
+          if [ "$VERSION_IN_COMMIT" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Check if this version has been published to npm
+            if npm view nats-pubsub@${JS_VERSION} version 2>/dev/null; then
               echo "version_changed=false" >> $GITHUB_OUTPUT
-              echo "JavaScript version $JS_VERSION already released"
+              echo "JavaScript version $JS_VERSION already published to npm"
             else
               echo "version_changed=true" >> $GITHUB_OUTPUT
               echo "version=$JS_VERSION" >> $GITHUB_OUTPUT
-              echo "JavaScript version changed to $JS_VERSION"
+              echo "JavaScript version $JS_VERSION not yet published - will publish"
             fi
           else
             echo "version_changed=false" >> $GITHUB_OUTPUT
@@ -196,7 +198,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     outputs:
       version_changed: ${{ steps.check_version.outputs.version_changed }}
       version: ${{ steps.check_version.outputs.version }}
@@ -210,18 +212,20 @@ jobs:
       - name: Check Ruby version changes
         id: check_version
         run: |
-          # Check if version.rb was updated in the last commit
-          if git diff HEAD~1 HEAD -- packages/ruby/lib/nats_pubsub/version.rb | grep -q 'VERSION'; then
-            RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
+          RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
 
-            # Check if this version tag already exists
-            if git tag | grep -q "^ruby-v${RUBY_VERSION}$"; then
+          # Check if version.rb was updated in the last commit OR if workflow_dispatch
+          VERSION_IN_COMMIT=$(git diff HEAD~1 HEAD -- packages/ruby/lib/nats_pubsub/version.rb | grep -q 'VERSION' && echo "true" || echo "false")
+
+          if [ "$VERSION_IN_COMMIT" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Check if this version has been published to RubyGems
+            if gem search -r "^nats_pubsub$" --version "${RUBY_VERSION}" | grep -q "nats_pubsub (${RUBY_VERSION})"; then
               echo "version_changed=false" >> $GITHUB_OUTPUT
-              echo "Ruby version $RUBY_VERSION already released"
+              echo "Ruby version $RUBY_VERSION already published to RubyGems"
             else
               echo "version_changed=true" >> $GITHUB_OUTPUT
               echo "version=$RUBY_VERSION" >> $GITHUB_OUTPUT
-              echo "Ruby version changed to $RUBY_VERSION"
+              echo "Ruby version $RUBY_VERSION not yet published - will publish"
             fi
           else
             echo "version_changed=false" >> $GITHUB_OUTPUT
