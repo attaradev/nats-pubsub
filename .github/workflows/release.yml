@@ -1,16 +1,9 @@
 name: Release
 
 on:
-  workflow_call:
-    inputs:
-      environment:
-        description: "Environment name for manual approval (e.g., release, production)"
-        required: false
-        type: string
-        default: "release"
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    branches:
+      - develop
   workflow_dispatch:
     inputs:
       environment:
@@ -32,21 +25,11 @@ jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_call' ||
-      (
-        github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main'
-      ) ||
-      github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/develop'
     outputs:
       has_changesets: ${{ steps.changeset_status.outputs.has_changesets }}
-      js_version_changed: ${{ steps.js_status.outputs.js_version_changed }}
-      js_version: ${{ steps.js_status.outputs.js_version }}
-      ruby_changed: ${{ steps.ruby_status.outputs.ruby_changed }}
-      ruby_version: ${{ steps.ruby_status.outputs.ruby_version }}
+      published: ${{ steps.changeset_status.outputs.published }}
+      published_packages: ${{ steps.changeset_status.outputs.published_packages }}
 
     steps:
       - name: Checkout code
@@ -56,26 +39,6 @@ jobs:
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup-node-pnpm
-
-      - name: Validate package builds
-        run: |
-          echo "Building JavaScript package..."
-          cd packages/javascript
-          pnpm build
-
-          # Verify build artifacts exist
-          if [ ! -f "dist/index.js" ] || [ ! -f "dist/index.cjs" ]; then
-            echo "❌ Build artifacts missing"
-            exit 1
-          fi
-
-          # Verify TypeScript declarations
-          if [ ! -f "dist/index.d.ts" ] || [ ! -f "dist/index.d.cts" ]; then
-            echo "❌ TypeScript declaration files missing"
-            exit 1
-          fi
-
-          echo "✅ JavaScript build successful"
 
       - name: Check for pending changesets
         id: changeset_status
@@ -83,331 +46,167 @@ jobs:
           # Check if any changeset files exist (excluding README.md)
           CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l)
 
-          if [ "$CHANGESET_COUNT" -eq 0 ]; then
-            echo "No changeset files found"
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Found $CHANGESET_COUNT changeset file(s), checking status..."
-
-          set +e
-          pnpm changeset status --output=json > /tmp/changeset-status.json 2>&1
-          STATUS=$?
-          set -e
-
-          if [ $STATUS -ne 0 ] || ! jq empty /tmp/changeset-status.json 2>/dev/null; then
-            echo "Warning: changeset status command failed"
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          COUNT=$(jq '.releases | length' /tmp/changeset-status.json)
-          if [ "$COUNT" -gt 0 ]; then
-            echo "Found $COUNT pending changeset release(s)"
+          if [ "$CHANGESET_COUNT" -gt 0 ]; then
+            echo "Found $CHANGESET_COUNT changeset file(s)"
             echo "has_changesets=true" >> $GITHUB_OUTPUT
           else
-            echo "No pending changesets to release"
+            echo "No changeset files found"
             echo "has_changesets=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Detect JavaScript version change
-        id: js_status
-        run: |
-          BEFORE="${{ github.event.before || '' }}"
-          AFTER="${{ github.sha }}"
-
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            RANGE="${BEFORE}..${AFTER}"
-          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
-            RANGE="HEAD~1..HEAD"
-          else
-            RANGE=""
-          fi
-
-          JS_VERSION_CHANGED=false
-          JS_VERSION=""
-
-          if [ -f "packages/javascript/package.json" ]; then
-            if [ -n "$RANGE" ]; then
-              CHANGED=$(git diff --name-only "$RANGE" -- packages/javascript/package.json || true)
-            else
-              CHANGED=$(git show --name-only --pretty="" "$AFTER" -- packages/javascript/package.json || true)
-            fi
-
-            if echo "$CHANGED" | grep -q "packages/javascript/package.json"; then
-              JS_VERSION_CHANGED=true
-              JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
-              echo "JavaScript package version changed to $JS_VERSION"
-            fi
-          fi
-
-          echo "js_version_changed=${JS_VERSION_CHANGED}" >> $GITHUB_OUTPUT
-          echo "js_version=${JS_VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Detect Ruby version change
-        id: ruby_status
-        run: |
-          BEFORE="${{ github.event.before || '' }}"
-          AFTER="${{ github.sha }}"
-
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            RANGE="${BEFORE}..${AFTER}"
-          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
-            RANGE="HEAD~1..HEAD"
-          else
-            RANGE=""
-          fi
-
-          if [ -n "$RANGE" ]; then
-            CHANGED=$(git diff --name-only "$RANGE" -- packages/ruby/lib/nats_pubsub/version.rb || true)
-          else
-            CHANGED=$(git show --name-only --pretty="" "$AFTER" -- packages/ruby/lib/nats_pubsub/version.rb || true)
-          fi
-
-          if echo "$CHANGED" | grep -q "packages/ruby/lib/nats_pubsub/version.rb"; then
-            RUBY_CHANGED=true
-            RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" packages/ruby/lib/nats_pubsub/version.rb)
-            echo "Ruby version changed to $RUBY_VERSION"
-          else
-            RUBY_CHANGED=false
-            RUBY_VERSION=""
-          fi
-
-          echo "ruby_changed=${RUBY_CHANGED}" >> $GITHUB_OUTPUT
-          echo "ruby_version=${RUBY_VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Validate Ruby version (if changed)
-        if: steps.ruby_status.outputs.ruby_changed == 'true'
-        run: ./scripts/ruby-version-sync.sh
-
-  # Run security audits before release
-  audit-javascript:
-    name: Security Audit (JS)
-    needs: prepare
-    if: needs.prepare.outputs.js_version_changed == 'true'
-    uses: ./.github/workflows/_audit.yml
-    with:
-      package: javascript
-      fail-on-vulnerabilities: false
-
-  audit-ruby:
-    name: Security Audit (Ruby)
-    needs: prepare
-    if: needs.prepare.outputs.ruby_changed == 'true'
-    uses: ./.github/workflows/_audit.yml
-    with:
-      package: ruby
-      fail-on-vulnerabilities: false
-
-  approval:
-    name: Manual Approval
-    runs-on: ubuntu-latest
-    needs: [prepare, audit-javascript, audit-ruby]
-    if: |
-      always() &&
-      (needs.prepare.outputs.js_version_changed == 'true' || needs.prepare.outputs.ruby_changed == 'true')
-    environment:
-      name: ${{ inputs.environment || github.event.inputs.environment || 'release' }}
-      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    steps:
-      - name: Display security audit results
-        run: |
-          echo "Security Audit Results:"
-          echo "  JavaScript: ${{ needs.audit-javascript.result }}"
-          echo "  Ruby: ${{ needs.audit-ruby.result }}"
-          echo ""
-          echo "Waiting for manual approval to proceed with release..."
-
-  release-pr:
-    name: Create Version Packages PR
+  version-pr:
+    name: Create Version PR or Publish
     needs: prepare
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.has_changesets == 'true'
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Create Version Packages PR
-        uses: changesets/action@v1
-        with:
-          version: pnpm changeset:version
-          commit: "chore: version packages"
-          title: "chore: version packages"
-          createGithubReleases: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  release-javascript:
-    name: Release JavaScript
-    needs: [prepare, approval]
-    runs-on: ubuntu-latest
-    if: needs.prepare.outputs.js_version_changed == 'true'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
-
-      - name: Publish to npm
+      - name: Create Release PR or Publish Packages
         id: changesets
         uses: changesets/action@v1
         with:
           version: pnpm changeset:version
           publish: pnpm changeset:publish
-          commit: "chore: version packages"
-          title: "chore: version packages"
+          commit: "chore: release packages"
+          title: "chore: release packages"
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Get published version
-        id: version
+      - name: Output published packages
         if: steps.changesets.outputs.published == 'true'
         run: |
-          JS_VERSION=$(echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | select(.name == "nats-pubsub") | .version')
-          echo "js_version=$JS_VERSION" >> $GITHUB_OUTPUT
-          echo "Published JavaScript version: $JS_VERSION"
+          echo "Published packages:"
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq '.'
 
-      - name: Create GitHub Release
-        if: steps.changesets.outputs.published == 'true' && steps.version.outputs.js_version != ''
-        uses: softprops/action-gh-release@v2.4.2
-        with:
-          tag_name: javascript-v${{ steps.version.outputs.js_version }}
-          name: JavaScript v${{ steps.version.outputs.js_version }}
-          body: |
-            JavaScript/TypeScript package release v${{ steps.version.outputs.js_version }}
+      - name: Create GitHub Releases for JavaScript
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          PUBLISHED='${{ steps.changesets.outputs.publishedPackages }}'
+
+          # Check if nats-pubsub was published
+          JS_VERSION=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "nats-pubsub") | .version')
+
+          if [ -n "$JS_VERSION" ] && [ "$JS_VERSION" != "null" ]; then
+            echo "Creating GitHub release for nats-pubsub@$JS_VERSION"
+
+            gh release create "javascript-v$JS_VERSION" \
+              --title "JavaScript v$JS_VERSION" \
+              --notes "JavaScript/TypeScript package release v$JS_VERSION
 
             ## Installation
 
-            ```bash
-            npm install nats-pubsub@${{ steps.version.outputs.js_version }}
+            \`\`\`bash
+            npm install nats-pubsub@$JS_VERSION
             # or
-            pnpm add nats-pubsub@${{ steps.version.outputs.js_version }}
+            pnpm add nats-pubsub@$JS_VERSION
             # or
-            yarn add nats-pubsub@${{ steps.version.outputs.js_version }}
-            ```
+            yarn add nats-pubsub@$JS_VERSION
+            \`\`\`
 
-            See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/javascript/CHANGELOG.md) for detailed changes.
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          make_latest: true
+            See the [full changelog](https://github.com/${{ github.repository }}/blob/develop/packages/javascript/CHANGELOG.md) for detailed changes." \
+              --latest
+          else
+            echo "No JavaScript package was published in this release"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify npm publication
-        if: steps.changesets.outputs.published == 'true' && steps.version.outputs.js_version != ''
-        run: |
-          echo "Waiting 10 seconds for npm registry propagation..."
-          sleep 10
-
-          VERSION="${{ steps.version.outputs.js_version }}"
-          if npm view nats-pubsub@$VERSION >/dev/null 2>&1; then
-            echo "✅ Package successfully published and verified on npm"
-          else
-            echo "⚠️  Warning: Package not yet available on npm registry"
-          fi
-
   release-ruby:
     name: Release Ruby
-    needs: [prepare, approval]
+    needs: version-pr
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.ruby_changed == 'true'
+    defaults:
+      run:
+        working-directory: packages/ruby
+    if: |
+      always() &&
+      needs.version-pr.result == 'success' &&
+      github.ref == 'refs/heads/develop'
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Ruby
-        uses: ./.github/actions/setup-ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ruby
+          bundler-cache: true
+          working-directory: packages/ruby
 
-      - name: Check if tag exists
-        id: check_tag
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+      - name: Check if version changed
+        id: check_version
         run: |
-          if git rev-parse "ruby-v${RUBY_VERSION}" >/dev/null 2>&1; then
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          RUBY_VERSION=$(sed -n "s/.*VERSION = '\\([^']*\\)'.*/\\1/p" lib/nats_pubsub/version.rb)
+
+          # Check if this version was already released
+          if git tag | grep -q "^ruby-v${RUBY_VERSION}$"; then
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+            echo "Ruby version $RUBY_VERSION already released"
           else
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+            echo "ruby_version=$RUBY_VERSION" >> $GITHUB_OUTPUT
+            echo "New Ruby version $RUBY_VERSION detected"
           fi
 
       - name: Create Git tag
-        if: steps.check_tag.outputs.tag_exists == 'false'
+        if: steps.check_version.outputs.version_changed == 'true'
+        working-directory: .
         env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+          RUBY_VERSION: ${{ steps.check_version.outputs.ruby_version }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "ruby-v${RUBY_VERSION}" -m "Release ruby-v${RUBY_VERSION} [skip ci]"
+          git tag -a "ruby-v${RUBY_VERSION}" -m "Release ruby-v${RUBY_VERSION}"
           git push origin "ruby-v${RUBY_VERSION}"
 
-      - name: Build gem
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        run: |
-          cd packages/ruby
-          gem build nats_pubsub.gemspec
-
-      - name: Publish to RubyGems
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        run: |
-          cd packages/ruby
-          gem push *.gem --oidc
-
-      - name: Verify RubyGems publication
-        env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
-        run: |
-          echo "Waiting 15 seconds for RubyGems propagation..."
-          sleep 15
-
-          if gem list -r nats_pubsub | grep "nats_pubsub (${RUBY_VERSION})"; then
-            echo "✅ Gem successfully published and verified on RubyGems"
-          else
-            echo "⚠️  Warning: Gem not yet available on RubyGems"
-          fi
+      - name: Publish to RubyGems with OIDC
+        if: steps.check_version.outputs.version_changed == 'true'
+        uses: rubygems/release-gem@v1
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.4.2
+        if: steps.check_version.outputs.version_changed == 'true'
+        working-directory: .
         env:
-          RUBY_VERSION: ${{ needs.prepare.outputs.ruby_version }}
+          RUBY_VERSION: ${{ steps.check_version.outputs.ruby_version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ruby-v${{ env.RUBY_VERSION }}
-          name: Ruby v${{ env.RUBY_VERSION }}
-          body: |
-            Ruby package release v${{ env.RUBY_VERSION }}
+        run: |
+          gh release create "ruby-v${RUBY_VERSION}" \
+            --title "Ruby v${RUBY_VERSION}" \
+            --notes "Ruby package release v${RUBY_VERSION}
 
-            ## Installation
+          ## Installation
 
-            ```ruby
-            # Gemfile
-            gem 'nats_pubsub', '~> ${{ env.RUBY_VERSION }}'
-            ```
+          \`\`\`ruby
+          # Gemfile
+          gem 'nats_pubsub', '~> ${RUBY_VERSION}'
+          \`\`\`
 
-            Or via command line:
-            ```bash
-            gem install nats_pubsub -v ${{ env.RUBY_VERSION }}
-            ```
+          Or via command line:
+          \`\`\`bash
+          gem install nats_pubsub -v ${RUBY_VERSION}
+          \`\`\`
 
-            See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for detailed changes.
-          files: packages/ruby/*.gem
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+          See the [full changelog](https://github.com/${{ github.repository }}/blob/develop/packages/ruby/CHANGELOG.md) for detailed changes." \
+            packages/ruby/*.gem

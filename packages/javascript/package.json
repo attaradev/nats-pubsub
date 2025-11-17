@@ -1,6 +1,6 @@
 {
   "name": "nats-pubsub",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Declarative PubSub messaging for NATS JetStream (Node.js/TypeScript)",
   "type": "module",
   "main": "./dist/index.cjs",
