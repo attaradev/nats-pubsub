@@ -3,59 +3,6 @@ import ComponentCreator from "@docusaurus/ComponentCreator";
 
 export default [
   {
-    path: "/nats-pubsub/__docusaurus/debug",
-    component: ComponentCreator("/nats-pubsub/__docusaurus/debug", "9c4"),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/config",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/config",
-      "e2a",
-    ),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/content",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/content",
-      "cbf",
-    ),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/globalData",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/globalData",
-      "475",
-    ),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/metadata",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/metadata",
-      "be7",
-    ),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/registry",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/registry",
-      "06f",
-    ),
-    exact: true,
-  },
-  {
-    path: "/nats-pubsub/__docusaurus/debug/routes",
-    component: ComponentCreator(
-      "/nats-pubsub/__docusaurus/debug/routes",
-      "95c",
-    ),
-    exact: true,
-  },
-  {
     path: "/nats-pubsub/blog",
     component: ComponentCreator("/nats-pubsub/blog", "10e"),
     exact: true,
@@ -100,26 +47,27 @@ export default [
   },
   {
     path: "/nats-pubsub/docs",
-    component: ComponentCreator("/nats-pubsub/docs", "c78"),
+    component: ComponentCreator("/nats-pubsub/docs", "632"),
     routes: [
       {
         path: "/nats-pubsub/docs",
-        component: ComponentCreator("/nats-pubsub/docs", "af0"),
+        component: ComponentCreator("/nats-pubsub/docs", "b88"),
         routes: [
           {
             path: "/nats-pubsub/docs",
-            component: ComponentCreator("/nats-pubsub/docs", "97b"),
+            component: ComponentCreator("/nats-pubsub/docs", "26e"),
             routes: [
               {
                 path: "/nats-pubsub/docs",
-                component: ComponentCreator("/nats-pubsub/docs", "6ec"),
+                component: ComponentCreator("/nats-pubsub/docs", "854"),
                 exact: true,
+                sidebar: "docs",
               },
               {
                 path: "/nats-pubsub/docs/advanced/architecture",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/advanced/architecture",
-                  "a3f",
+                  "a45",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -128,7 +76,7 @@ export default [
                 path: "/nats-pubsub/docs/advanced/custom-repositories",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/advanced/custom-repositories",
-                  "3f2",
+                  "5cb",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -137,30 +85,41 @@ export default [
                 path: "/nats-pubsub/docs/advanced/internals",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/advanced/internals",
-                  "4d2",
+                  "31a",
                 ),
                 exact: true,
                 sidebar: "docs",
+              },
+              {
+                path: "/nats-pubsub/docs/advanced/monitoring",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/advanced/monitoring",
+                  "c31",
+                ),
+                exact: true,
+              },
+              {
+                path: "/nats-pubsub/docs/advanced/observability",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/advanced/observability",
+                  "f7c",
+                ),
+                exact: true,
               },
               {
                 path: "/nats-pubsub/docs/advanced/security",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/advanced/security",
-                  "42d",
+                  "0ce",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
-                path: "/nats-pubsub/docs/blog",
-                component: ComponentCreator("/nats-pubsub/docs/blog", "439"),
-                exact: true,
-              },
-              {
                 path: "/nats-pubsub/docs/getting-started/concepts",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/getting-started/concepts",
-                  "17b",
+                  "c39",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -169,7 +128,7 @@ export default [
                 path: "/nats-pubsub/docs/getting-started/installation",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/getting-started/installation",
-                  "5df",
+                  "566",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -178,7 +137,7 @@ export default [
                 path: "/nats-pubsub/docs/getting-started/introduction",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/getting-started/introduction",
-                  "9c8",
+                  "97c",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -187,7 +146,7 @@ export default [
                 path: "/nats-pubsub/docs/getting-started/quick-start-js",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/getting-started/quick-start-js",
-                  "323",
+                  "a3f",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -196,16 +155,40 @@ export default [
                 path: "/nats-pubsub/docs/getting-started/quick-start-ruby",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/getting-started/quick-start-ruby",
-                  "073",
+                  "ffa",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
+                path: "/nats-pubsub/docs/getting-started/quickstart",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/getting-started/quickstart",
+                  "06e",
+                ),
+                exact: true,
+              },
+              {
+                path: "/nats-pubsub/docs/getting-started/rails-quick-start",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/getting-started/rails-quick-start",
+                  "f57",
+                ),
+                exact: true,
+              },
+              {
+                path: "/nats-pubsub/docs/getting-started/ruby",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/getting-started/ruby",
+                  "59d",
+                ),
+                exact: true,
+              },
+              {
                 path: "/nats-pubsub/docs/guides/deployment",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/deployment",
-                  "6a5",
+                  "36f",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -214,16 +197,24 @@ export default [
                 path: "/nats-pubsub/docs/guides/middleware",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/middleware",
-                  "f7d",
+                  "2ea",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
+                path: "/nats-pubsub/docs/guides/monitoring",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/guides/monitoring",
+                  "97f",
+                ),
+                exact: true,
+              },
+              {
                 path: "/nats-pubsub/docs/guides/performance",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/performance",
-                  "a5d",
+                  "cf3",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -232,7 +223,7 @@ export default [
                 path: "/nats-pubsub/docs/guides/publishing",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/publishing",
-                  "604",
+                  "683",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -241,7 +232,7 @@ export default [
                 path: "/nats-pubsub/docs/guides/subscribing",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/subscribing",
-                  "d17",
+                  "520",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -250,16 +241,24 @@ export default [
                 path: "/nats-pubsub/docs/guides/testing",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/guides/testing",
-                  "a92",
+                  "2eb",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
+                path: "/nats-pubsub/docs/guides/topics",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/guides/topics",
+                  "135",
+                ),
+                exact: true,
+              },
+              {
                 path: "/nats-pubsub/docs/integrations/databases",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/integrations/databases",
-                  "c14",
+                  "274",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -268,7 +267,7 @@ export default [
                 path: "/nats-pubsub/docs/integrations/express",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/integrations/express",
-                  "800",
+                  "865",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -277,7 +276,7 @@ export default [
                 path: "/nats-pubsub/docs/integrations/nestjs",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/integrations/nestjs",
-                  "d9f",
+                  "d48",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -286,31 +285,46 @@ export default [
                 path: "/nats-pubsub/docs/integrations/rails",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/integrations/rails",
-                  "7ea",
+                  "de4",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
                 path: "/nats-pubsub/docs/intro",
-                component: ComponentCreator("/nats-pubsub/docs/intro", "87d"),
+                component: ComponentCreator("/nats-pubsub/docs/intro", "c42"),
                 exact: true,
-                sidebar: "docs",
+              },
+              {
+                path: "/nats-pubsub/docs/patterns",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/patterns",
+                  "4f4",
+                ),
+                exact: true,
               },
               {
                 path: "/nats-pubsub/docs/patterns/dlq",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/patterns/dlq",
-                  "ddc",
+                  "d79",
                 ),
                 exact: true,
                 sidebar: "docs",
               },
               {
+                path: "/nats-pubsub/docs/patterns/error-handling",
+                component: ComponentCreator(
+                  "/nats-pubsub/docs/patterns/error-handling",
+                  "9d9",
+                ),
+                exact: true,
+              },
+              {
                 path: "/nats-pubsub/docs/patterns/event-sourcing",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/patterns/event-sourcing",
-                  "2b6",
+                  "bd5",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -319,7 +333,7 @@ export default [
                 path: "/nats-pubsub/docs/patterns/inbox-outbox",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/patterns/inbox-outbox",
-                  "b45",
+                  "a25",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -328,7 +342,7 @@ export default [
                 path: "/nats-pubsub/docs/patterns/schema-validation",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/patterns/schema-validation",
-                  "7f7",
+                  "fb1",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -337,7 +351,7 @@ export default [
                 path: "/nats-pubsub/docs/reference/cli",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/reference/cli",
-                  "cfb",
+                  "a1d",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -346,7 +360,7 @@ export default [
                 path: "/nats-pubsub/docs/reference/configuration",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/reference/configuration",
-                  "142",
+                  "aa4",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -355,7 +369,7 @@ export default [
                 path: "/nats-pubsub/docs/reference/javascript-api",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/reference/javascript-api",
-                  "77d",
+                  "b31",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -364,7 +378,7 @@ export default [
                 path: "/nats-pubsub/docs/reference/ruby-api",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/reference/ruby-api",
-                  "7c3",
+                  "c2c",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -373,7 +387,7 @@ export default [
                 path: "/nats-pubsub/docs/troubleshooting/common-issues",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/troubleshooting/common-issues",
-                  "b9b",
+                  "f9b",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -382,7 +396,7 @@ export default [
                 path: "/nats-pubsub/docs/troubleshooting/debugging",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/troubleshooting/debugging",
-                  "940",
+                  "f0d",
                 ),
                 exact: true,
                 sidebar: "docs",
@@ -391,7 +405,7 @@ export default [
                 path: "/nats-pubsub/docs/troubleshooting/faq",
                 component: ComponentCreator(
                   "/nats-pubsub/docs/troubleshooting/faq",
-                  "faa",
+                  "9e6",
                 ),
                 exact: true,
                 sidebar: "docs",

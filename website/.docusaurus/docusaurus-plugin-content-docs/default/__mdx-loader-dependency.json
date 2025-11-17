@@ -1,10 +1,10 @@
 {
   "options": {
+    "path": "../docs",
     "sidebarPath": "/Users/mikeattara/Projects/Lab/nats-pubsub/website/sidebars.ts",
     "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/",
     "remarkPlugins": [],
     "showLastUpdateTime": true,
-    "path": "docs",
     "editCurrentVersion": false,
     "editLocalizedFiles": false,
     "routeBasePath": "docs",
@@ -48,11 +48,11 @@
       "className": "docs-version-current",
       "path": "/nats-pubsub/docs",
       "tagsPath": "/nats-pubsub/docs/tags",
-      "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/docs",
+      "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs",
       "isLast": true,
       "routePriority": -1,
       "sidebarFilePath": "/Users/mikeattara/Projects/Lab/nats-pubsub/website/sidebars.ts",
-      "contentPath": "/Users/mikeattara/Projects/Lab/nats-pubsub/website/docs"
+      "contentPath": "/Users/mikeattara/Projects/Lab/nats-pubsub/docs"
     }
   ]
 }

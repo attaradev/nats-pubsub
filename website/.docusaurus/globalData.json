@@ -26,13 +26,17 @@
               "sidebar": "docs"
             },
             {
+              "id": "advanced/monitoring",
+              "path": "/nats-pubsub/docs/advanced/monitoring"
+            },
+            {
+              "id": "advanced/observability",
+              "path": "/nats-pubsub/docs/advanced/observability"
+            },
+            {
               "id": "advanced/security",
               "path": "/nats-pubsub/docs/advanced/security",
               "sidebar": "docs"
-            },
-            {
-              "id": "blog/index",
-              "path": "/nats-pubsub/docs/blog/"
             },
             {
               "id": "getting-started/concepts",
@@ -60,6 +64,18 @@
               "sidebar": "docs"
             },
             {
+              "id": "getting-started/quickstart",
+              "path": "/nats-pubsub/docs/getting-started/quickstart"
+            },
+            {
+              "id": "getting-started/rails-quick-start",
+              "path": "/nats-pubsub/docs/getting-started/rails-quick-start"
+            },
+            {
+              "id": "getting-started/ruby",
+              "path": "/nats-pubsub/docs/getting-started/ruby"
+            },
+            {
               "id": "guides/deployment",
               "path": "/nats-pubsub/docs/guides/deployment",
               "sidebar": "docs"
@@ -68,6 +84,10 @@
               "id": "guides/middleware",
               "path": "/nats-pubsub/docs/guides/middleware",
               "sidebar": "docs"
+            },
+            {
+              "id": "guides/monitoring",
+              "path": "/nats-pubsub/docs/guides/monitoring"
             },
             {
               "id": "guides/performance",
@@ -90,8 +110,13 @@
               "sidebar": "docs"
             },
             {
+              "id": "guides/topics",
+              "path": "/nats-pubsub/docs/guides/topics"
+            },
+            {
               "id": "index",
-              "path": "/nats-pubsub/docs/"
+              "path": "/nats-pubsub/docs/",
+              "sidebar": "docs"
             },
             {
               "id": "integrations/databases",
@@ -115,13 +140,16 @@
             },
             {
               "id": "intro",
-              "path": "/nats-pubsub/docs/intro",
-              "sidebar": "docs"
+              "path": "/nats-pubsub/docs/intro"
             },
             {
               "id": "patterns/dlq",
               "path": "/nats-pubsub/docs/patterns/dlq",
               "sidebar": "docs"
+            },
+            {
+              "id": "patterns/error-handling",
+              "path": "/nats-pubsub/docs/patterns/error-handling"
             },
             {
               "id": "patterns/event-sourcing",
@@ -132,6 +160,10 @@
               "id": "patterns/inbox-outbox",
               "path": "/nats-pubsub/docs/patterns/inbox-outbox",
               "sidebar": "docs"
+            },
+            {
+              "id": "patterns/index",
+              "path": "/nats-pubsub/docs/patterns/"
             },
             {
               "id": "patterns/schema-validation",
@@ -178,8 +210,8 @@
           "sidebars": {
             "docs": {
               "link": {
-                "path": "/nats-pubsub/docs/intro",
-                "label": "intro"
+                "path": "/nats-pubsub/docs/",
+                "label": "index"
               }
             }
           }

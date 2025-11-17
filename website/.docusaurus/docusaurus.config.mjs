@@ -24,6 +24,10 @@ export default {
   },
   "markdown": {
     "mermaid": true,
+    "hooks": {
+      "onBrokenMarkdownLinks": "warn",
+      "onBrokenMarkdownImages": "throw"
+    },
     "format": "mdx",
     "emoji": true,
     "mdx1Compat": {
@@ -33,10 +37,6 @@ export default {
     },
     "anchors": {
       "maintainCase": false
-    },
-    "hooks": {
-      "onBrokenMarkdownLinks": "warn",
-      "onBrokenMarkdownImages": "throw"
     }
   },
   "themes": [
@@ -47,6 +47,7 @@ export default {
       "classic",
       {
         "docs": {
+          "path": "../docs",
           "sidebarPath": "./sidebars.ts",
           "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/",
           "remarkPlugins": [],
@@ -102,7 +103,7 @@ export default {
           "items": [
             {
               "label": "Introduction",
-              "to": "/docs/intro"
+              "to": "/docs"
             },
             {
               "label": "JavaScript Examples",

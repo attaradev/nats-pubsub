@@ -34,7 +34,8 @@
     "slug": "introducing-natspubsub-1.0",
     "title": "Introducing NatsPubsub 1.0",
     "authors": ["mike"],
-    "tags": ["announcement", "release"]
+    "tags": ["announcement", "release"],
+    "hide_table_of_contents": false
   },
   "unlisted": false
 }

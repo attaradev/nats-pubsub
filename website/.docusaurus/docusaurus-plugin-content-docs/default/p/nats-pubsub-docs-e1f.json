@@ -12,9 +12,9 @@
       "docs": [
         {
           "type": "link",
-          "href": "/nats-pubsub/docs/intro",
-          "label": "Welcome to NatsPubsub",
-          "docId": "intro",
+          "href": "/nats-pubsub/docs/",
+          "label": "NatsPubsub Documentation",
+          "docId": "index",
           "unlisted": false
         },
         {
@@ -304,16 +304,21 @@
         "description": "This comprehensive guide provides a deep dive into the internal workings of NatsPubsub, including publishing mechanisms, subscribing mechanics, message formats, acknowledgment protocols, and performance optimizations.",
         "sidebar": "docs"
       },
+      "advanced/monitoring": {
+        "id": "advanced/monitoring",
+        "title": "Advanced Monitoring Setup",
+        "description": "This comprehensive guide covers production-grade monitoring for NatsPubsub applications, including Prometheus, Grafana, DataDog, New Relic, high-cardinality metrics, and JetStream consumer lag analysis."
+      },
+      "advanced/observability": {
+        "id": "advanced/observability",
+        "title": "Observability",
+        "description": "Comprehensive guide to observability in NatsPubsub applications, covering logs, metrics, and distributed tracing with OpenTelemetry integration for production-grade monitoring."
+      },
       "advanced/security": {
         "id": "advanced/security",
         "title": "Security Best Practices for NatsPubsub",
         "description": "This comprehensive guide covers security best practices for NatsPubsub deployments, including authentication, authorization, encryption, network security, and compliance requirements.",
         "sidebar": "docs"
-      },
-      "blog/index": {
-        "id": "blog/index",
-        "title": "Blog",
-        "description": "Welcome to the NatsPubsub blog! Here you'll find articles about new features, best practices, and real-world use cases."
       },
       "getting-started/concepts": {
         "id": "getting-started/concepts",
@@ -345,6 +350,21 @@
         "description": "Get up and running with NatsPubsub in 5 minutes.",
         "sidebar": "docs"
       },
+      "getting-started/quickstart": {
+        "id": "getting-started/quickstart",
+        "title": "Quick Start Guide",
+        "description": "Get started with NatsPubsub in under 10 minutes. This guide covers the basics for both JavaScript/TypeScript and Ruby implementations."
+      },
+      "getting-started/rails-quick-start": {
+        "id": "getting-started/rails-quick-start",
+        "title": "NatsPubsub Rails Quick Start Guide",
+        "description": "Get started with NatsPubsub in your Rails application in 5 minutes."
+      },
+      "getting-started/ruby": {
+        "id": "getting-started/ruby",
+        "title": "Ruby Overview",
+        "description": "NatsPubsub for Ruby provides a production-ready, declarative pub/sub messaging library with deep Rails integration and reliability patterns."
+      },
       "guides/deployment": {
         "id": "guides/deployment",
         "title": "Deployment Guide",
@@ -356,6 +376,11 @@
         "title": "Middleware System Guide",
         "description": "This comprehensive guide covers the middleware system in NatsPubsub, enabling you to add cross-cutting concerns like logging, metrics, tracing, and custom business logic to your message processing pipeline.",
         "sidebar": "docs"
+      },
+      "guides/monitoring": {
+        "id": "guides/monitoring",
+        "title": "Practical Monitoring Guide",
+        "description": "Practical guide to monitoring NatsPubsub applications in production, covering essential metrics, alerts, dashboards, and health checks for both JavaScript and Ruby."
       },
       "guides/performance": {
         "id": "guides/performance",
@@ -381,10 +406,16 @@
         "description": "This comprehensive guide covers testing strategies for NatsPubsub applications, from unit tests to integration tests, including mocking strategies, test utilities, and best practices for both JavaScript/TypeScript and Ruby implementations.",
         "sidebar": "docs"
       },
+      "guides/topics": {
+        "id": "guides/topics",
+        "title": "Topic Naming and Patterns Guide",
+        "description": "Comprehensive guide to designing effective topic hierarchies, naming conventions, and wildcard patterns for NatsPubsub applications."
+      },
       "index": {
         "id": "index",
         "title": "NatsPubsub Documentation",
-        "description": "Welcome to the comprehensive documentation for NatsPubsub - a production-ready, declarative pub/sub messaging library for NATS JetStream."
+        "description": "Welcome to the comprehensive documentation for NatsPubsub - a production-ready, declarative pub/sub messaging library for NATS JetStream.",
+        "sidebar": "docs"
       },
       "integrations/databases": {
         "id": "integrations/databases",
@@ -413,14 +444,18 @@
       "intro": {
         "id": "intro",
         "title": "Welcome to NatsPubsub",
-        "description": "NatsPubsub is a production-ready pub/sub library for NATS JetStream with implementations in both TypeScript and Ruby.",
-        "sidebar": "docs"
+        "description": "NatsPubsub is a production-ready pub/sub library for NATS JetStream with implementations in both TypeScript and Ruby."
       },
       "patterns/dlq": {
         "id": "patterns/dlq",
         "title": "Dead Letter Queue (DLQ) Pattern",
         "description": "This comprehensive guide covers the Dead Letter Queue (DLQ) pattern in NatsPubsub for handling failed messages and implementing robust error recovery strategies.",
         "sidebar": "docs"
+      },
+      "patterns/error-handling": {
+        "id": "patterns/error-handling",
+        "title": "Error Handling Strategies",
+        "description": "This comprehensive guide covers error handling patterns and strategies in NatsPubsub for building resilient, fault-tolerant message-driven applications."
       },
       "patterns/event-sourcing": {
         "id": "patterns/event-sourcing",
@@ -433,6 +468,11 @@
         "title": "Inbox & Outbox Patterns",
         "description": "This comprehensive guide covers the Inbox and Outbox patterns in NatsPubsub, providing transactional guarantees for distributed message processing.",
         "sidebar": "docs"
+      },
+      "patterns/index": {
+        "id": "patterns/index",
+        "title": "Reliability Patterns",
+        "description": "NatsPubsub provides battle-tested reliability patterns to ensure message delivery, prevent data loss, and handle failures gracefully in distributed systems."
       },
       "patterns/schema-validation": {
         "id": "patterns/schema-validation",

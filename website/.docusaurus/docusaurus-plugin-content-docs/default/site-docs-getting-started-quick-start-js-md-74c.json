@@ -11,7 +11,11 @@
   "editUrl": "https://github.com/attaradev/nats-pubsub/tree/main/docs/../docs/getting-started/quick-start-js.md",
   "tags": [],
   "version": "current",
+<<<<<<< HEAD
   "lastUpdatedAt": 1539502055000,
+=======
+  "lastUpdatedAt": 1763417375000,
+>>>>>>> 54ab037 (refactor: improve organization)
   "frontMatter": {},
   "sidebar": "docs",
   "previous": {
