@@ -1,6 +1,6 @@
 {
   "name": "nats-pubsub-monorepo",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Declarative PubSub messaging for NATS JetStream - Monorepo",
   "scripts": {
@@ -11,6 +11,8 @@
     "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules pnpm-lock.yaml",
     "install:js": "pnpm install --filter nats-pubsub",
     "install:ruby": "cd packages/ruby && bundle install",
+    "start:website": "pnpm --filter nats-pubsub-website start",
+    "build:website": "pnpm --filter nats-pubsub-website build",
     "changeset": "changeset",
     "changeset:add": "changeset add",
     "changeset:status": "changeset status",
@@ -20,6 +22,9 @@
     "release:preview": "./scripts/release-preview.sh",
     "release:check": "./scripts/release-check.sh",
     "release:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "ruby:changelog": "./scripts/ruby-changelog.sh",
+    "ruby:changelog:interactive": "./scripts/ruby-changelog.sh -i",
+    "validate:versions": "./scripts/validate-versions.sh",
     "prepare": "husky",
     "commit": "git-cz"
   },

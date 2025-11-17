@@ -16,6 +16,13 @@ describe('Publisher', () => {
   let mockHeaders: any;
 
   beforeEach(() => {
+    // Configure first before creating publisher
+    config.configure({
+      natsUrls: 'nats://localhost:4222',
+      env: 'test',
+      appName: 'test-app',
+    });
+
     publisher = new Publisher();
 
     mockHeaders = {
@@ -31,12 +38,6 @@ describe('Publisher', () => {
 
     const { headers } = require('nats');
     (headers as jest.Mock).mockReturnValue(mockHeaders);
-
-    config.configure({
-      natsUrls: 'nats://localhost:4222',
-      env: 'test',
-      appName: 'test-app',
-    });
   });
 
   afterEach(() => {
@@ -47,12 +48,12 @@ describe('Publisher', () => {
     it('should publish an event successfully', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       expect(connection.ensureConnection).toHaveBeenCalled();
       expect(connection.getJetStream).toHaveBeenCalled();
       expect(mockJetstream.publish).toHaveBeenCalledWith(
-        'test.events.users.user.created',
+        'test.test-app.users.user.created',
         expect.any(String),
         expect.objectContaining({
           msgID: expect.any(String),
@@ -69,7 +70,10 @@ describe('Publisher', () => {
         occurred_at: new Date('2025-01-01T00:00:00Z'),
       };
 
-      await publisher.publish('users', 'user', 'created', payload, options);
+      await publisher.publish(
+        { domain: 'users', resource: 'user', action: 'created', payload },
+        options
+      );
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const envelopeJson = publishCall[1];
@@ -78,20 +82,22 @@ describe('Publisher', () => {
       expect(envelope).toEqual({
         event_id: 'custom-event-id',
         schema_version: 1,
-        event_type: 'created',
+        topic: 'users.user.created',
         producer: 'test-app',
-        resource_type: 'user',
+        domain: 'users',
+        resource: 'user',
+        action: 'created',
         resource_id: '123',
         occurred_at: '2025-01-01T00:00:00.000Z',
         trace_id: 'trace-123',
-        payload,
+        message: payload,
       });
     });
 
     it('should generate event_id if not provided', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const envelopeJson = publishCall[1];
@@ -106,7 +112,7 @@ describe('Publisher', () => {
       const beforeTime = new Date().getTime();
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       const afterTime = new Date().getTime();
       const publishCall = mockJetstream.publish.mock.calls[0];
@@ -122,7 +128,10 @@ describe('Publisher', () => {
       const payload = { id: '123', name: 'Test User' };
       const options = { event_id: 'custom-event-id' };
 
-      await publisher.publish('users', 'user', 'created', payload, options);
+      await publisher.publish(
+        { domain: 'users', resource: 'user', action: 'created', payload },
+        options
+      );
 
       expect(mockHeaders.set).toHaveBeenCalledWith('Nats-Msg-Id', 'custom-event-id');
     });
@@ -131,7 +140,10 @@ describe('Publisher', () => {
       const payload = { id: '123', name: 'Test User' };
       const options = { trace_id: 'trace-123' };
 
-      await publisher.publish('users', 'user', 'created', payload, options);
+      await publisher.publish(
+        { domain: 'users', resource: 'user', action: 'created', payload },
+        options
+      );
 
       expect(mockHeaders.set).toHaveBeenCalledWith('trace_id', 'trace-123');
     });
@@ -139,16 +151,17 @@ describe('Publisher', () => {
     it('should not set trace_id header when not provided', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
-      expect(mockHeaders.set).toHaveBeenCalledTimes(1);
+      expect(mockHeaders.set).toHaveBeenCalledTimes(2);
       expect(mockHeaders.set).toHaveBeenCalledWith('Nats-Msg-Id', expect.any(String));
+      expect(mockHeaders.set).toHaveBeenCalledWith('topic', 'users.user.created');
     });
 
     it('should extract resource_id from payload.id', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const envelopeJson = publishCall[1];
@@ -160,7 +173,7 @@ describe('Publisher', () => {
     it('should extract resource_id from payload.ID', async () => {
       const payload = { ID: '456', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const envelopeJson = publishCall[1];
@@ -172,7 +185,7 @@ describe('Publisher', () => {
     it('should handle payload without id', async () => {
       const payload = { name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const envelopeJson = publishCall[1];
@@ -184,10 +197,10 @@ describe('Publisher', () => {
     it('should build correct subject from domain, resource, and action', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('orders', 'order', 'placed', payload);
+      await publisher.publish({ domain: 'orders', resource: 'order', action: 'placed', payload });
 
       expect(mockJetstream.publish).toHaveBeenCalledWith(
-        'test.events.orders.order.placed',
+        'test.test-app.orders.order.placed',
         expect.any(String),
         expect.any(Object)
       );
@@ -199,15 +212,15 @@ describe('Publisher', () => {
 
       const payload = { id: '123', name: 'Test User' };
 
-      await expect(publisher.publish('users', 'user', 'created', payload)).rejects.toThrow(
-        'Publish failed'
-      );
+      await expect(
+        publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload })
+      ).rejects.toThrow('Publish failed');
     });
 
     it('should ensure connection before publishing', async () => {
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await publisher.publish({ domain: 'users', resource: 'user', action: 'created', payload });
 
       expect(connection.ensureConnection).toHaveBeenCalled();
       expect(connection.getJetStream).toHaveBeenCalled();
@@ -220,16 +233,24 @@ describe('Publisher', () => {
         appName: 'prod-app',
       });
 
+      // Create new publisher instance with updated config
+      const prodPublisher = new Publisher();
+
       const payload = { id: '123', name: 'Test User' };
 
-      await publisher.publish('users', 'user', 'created', payload);
+      await prodPublisher.publish({
+        domain: 'users',
+        resource: 'user',
+        action: 'created',
+        payload,
+      });
 
       const publishCall = mockJetstream.publish.mock.calls[0];
       const subject = publishCall[0];
       const envelopeJson = publishCall[1];
       const envelope = JSON.parse(envelopeJson);
 
-      expect(subject).toBe('production.events.users.user.created');
+      expect(subject).toBe('production.prod-app.users.user.created');
       expect(envelope.producer).toBe('prod-app');
     });
   });

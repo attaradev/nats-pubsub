@@ -1,56 +1,75 @@
 #!/bin/bash
 # Release Preview - Show what versions will be released
 
-set -e
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
-echo "🔮 Release Preview for NatsPubsub Monorepo"
-echo "==========================================="
-echo ""
+# Main function
+main() {
+  ensure_repo_root || exit 1
+  ensure_changesets || exit 1
+  require_command pnpm "Install pnpm: npm install -g pnpm" || exit 1
 
-# Check if changesets exist
-if [ ! -d ".changeset" ]; then
-  echo "❌ Changesets not initialized. Run: pnpm changeset init"
-  exit 1
-fi
+  print_header "🔮 Release Preview for NatsPubsub Monorepo"
 
-# Count pending changesets
-CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l | tr -d ' ')
+  # Get changeset count
+  local changeset_count
+  changeset_count=$(count_changesets)
 
-if [ "$CHANGESET_COUNT" -eq 0 ]; then
-  echo "✅ No pending changesets to release"
-  exit 0
-fi
+  if [ "$changeset_count" -eq 0 ]; then
+    log_success "No pending changesets to release"
+    exit 0
+  fi
 
-echo "📝 Found $CHANGESET_COUNT pending changeset(s)"
-echo ""
+  echo "📝 Found $changeset_count pending changeset(s)"
+  show_current_versions
+  analyze_changesets
+  show_next_steps
+}
 
-# Show current versions
-echo "📊 Current Versions:"
-echo ""
+# Show current package versions
+show_current_versions() {
+  print_section "Current Versions"
 
-if [ -f "packages/javascript/package.json" ]; then
-  JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
-  echo "  JavaScript (npm): v$JS_VERSION"
-fi
+  # JavaScript version
+  if require_command node >/dev/null 2>&1 && [ -f "$JS_PACKAGE_JSON" ]; then
+    local js_version
+    js_version=$(get_js_version)
+    echo "  JavaScript (npm): v$js_version"
+  fi
 
-if [ -f "packages/ruby/lib/nats_pubsub/version.rb" ]; then
-  RUBY_VERSION=$(ruby -e "require_relative 'packages/ruby/lib/nats_pubsub/version.rb'; puts NatsPubsub::VERSION")
-  echo "  Ruby (gem): v$RUBY_VERSION"
-fi
+  # Ruby version
+  if [ -f "$RUBY_VERSION_FILE" ]; then
+    local ruby_version
+    ruby_version=$(get_ruby_version)
+    echo "  Ruby (gem): v$ruby_version"
+  fi
+}
 
-echo ""
-echo "🔍 Analyzing changesets..."
-echo ""
+# Analyze changesets
+analyze_changesets() {
+  print_section "Analyzing changesets..."
+  echo ""
 
-# Run changeset status
-pnpm changeset status
+  # Run changeset status
+  pnpm changeset status
 
-echo ""
-echo "💡 Note: Ruby package versions are manually managed."
-echo "   JavaScript versions will be updated automatically by Changesets."
-echo ""
-echo "To proceed:"
-echo "  1. Review the changesets above"
-echo "  2. Merge to develop branch to create Release PR"
-echo "  3. Review and merge Release PR to trigger publishing"
-echo ""
+  echo ""
+  log_info "Note: Ruby package versions are manually managed."
+  echo "     JavaScript versions will be updated automatically by Changesets."
+}
+
+# Show next steps
+show_next_steps() {
+  echo ""
+  echo "To proceed:"
+  echo "  1. Review the changesets above"
+  echo "  2. Merge to develop branch to create Release PR"
+  echo "  3. Review and merge Release PR to trigger publishing"
+  echo ""
+}
+
+# Run main function
+main "$@"

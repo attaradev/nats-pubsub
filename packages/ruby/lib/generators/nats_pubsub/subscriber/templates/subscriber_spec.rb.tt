@@ -1,0 +1,116 @@
+# frozen_string_literal: true
+
+require 'rails_helper'
+
+RSpec.describe <%= subscriber_class_name %>, nats_fake: true do
+  subject(:subscriber) { described_class.new }
+
+  describe '.all_subscriptions' do
+    it 'subscribes to correct topics' do
+<% all_topics.each do |topic| -%>
+      expect(described_class.all_subscriptions).to include(
+        hash_including(topic: '<%= topic %>')
+      )
+<% end -%>
+    end
+  end
+
+  describe '#handle' do
+    let(:event_id) { SecureRandom.uuid }
+    let(:trace_id) { SecureRandom.uuid }
+    let(:context) do
+      NatsPubsub::Core::MessageContext.new(
+        event_id: event_id,
+        trace_id: trace_id,
+        topic: '<%= example_topic %>',
+        subject: 'test.app.<%= example_topic %>',
+        deliveries: 1,
+        timestamp: Time.current
+      )
+    end
+
+    context 'with valid message' do
+      let(:message) do
+        {
+          'event_id' => event_id,
+          'domain' => '<%= example_topic.split('.').first %>',
+          'resource' => '<%= example_topic.split('.')[1] || 'resource' %>',
+          'action' => 'created',
+          'data' => {
+            'id' => 1,
+            'name' => 'Test <%= class_name %>'
+          }
+        }
+      end
+
+      it 'processes the message successfully' do
+        expect { subscriber.handle(message, context) }.not_to raise_error
+      end
+
+      it 'logs processing information' do
+        allow(Rails.logger).to receive(:info)
+
+        subscriber.handle(message, context)
+
+        expect(Rails.logger).to have_received(:info)
+          .with(/Processing message: event_id=#{event_id}/)
+      end
+
+      # TODO: Add specific assertions for your business logic
+      # it 'creates the expected record' do
+      #   expect { subscriber.handle(message, context) }
+      #     .to change { YourModel.count }.by(1)
+      # end
+    end
+
+    context 'with invalid message' do
+      let(:message) { {} }
+
+      it 'handles missing data gracefully' do
+        # TODO: Implement based on your error handling strategy
+        # expect { subscriber.handle(message, context) }.not_to raise_error
+        # OR
+        # expect { subscriber.handle(message, context) }.to raise_error(StandardError)
+      end
+    end
+
+    context 'when processing fails' do
+      let(:message) do
+        {
+          'event_id' => event_id,
+          'action' => 'created',
+          'data' => { 'id' => 1 }
+        }
+      end
+
+      before do
+        # Simulate a processing failure
+        # allow(YourService).to receive(:call).and_raise(StandardError, 'Processing failed')
+      end
+
+      it 'logs the error' do
+        # TODO: Implement based on your error handling
+        # allow(Rails.logger).to receive(:error)
+        # expect { subscriber.handle(message, context) }.to raise_error(StandardError)
+        # expect(Rails.logger).to have_received(:error)
+      end
+    end
+  end
+
+  # Optional: Test custom error handling
+  # describe '#on_error' do
+  #   let(:error_context) do
+  #     NatsPubsub::Core::ErrorContext.new(
+  #       error: StandardError.new('Test error'),
+  #       message: {},
+  #       context: double(event_id: 'test-id'),
+  #       attempts: 1
+  #     )
+  #   end
+  #
+  #   it 'returns appropriate error action' do
+  #     result = subscriber.on_error(error_context)
+  #     expect(result).to eq(NatsPubsub::Core::ErrorAction::RETRY)
+  #   end
+  # end
+end

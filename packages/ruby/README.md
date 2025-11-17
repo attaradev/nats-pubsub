@@ -1,4 +1,9 @@
-# NatsPubsub (Ruby)
+# NatsPubsub ![Ruby](https://img.shields.io/badge/Ruby-CC342D?logo=ruby&logoColor=white)
+
+[![Gem Version](https://badge.fury.io/rb/nats_pubsub.svg)](https://badge.fury.io/rb/nats_pubsub)
+[![Ruby](https://img.shields.io/badge/Ruby-3.2%2B-CC342D?logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rails](https://img.shields.io/badge/Rails-6%2B-CC342D?logo=rubyonrails&logoColor=white)](https://rubyonrails.org/)
 
 **Declarative PubSub messaging for NATS JetStream**
 
@@ -6,43 +11,83 @@ A production-ready pub/sub library for Ruby with Rails integration, declarative 
 
 This is the Ruby implementation of NatsPubsub. For the Node.js/TypeScript version, see [../javascript](../javascript).
 
+## 🚀 Quick Start (< 5 minutes)
+
+```ruby
+# 1. Install
+# Add to Gemfile: gem "nats_pubsub", "~> 0.1"
+# Run: bundle install
+
+# 2. Start NATS Server (in terminal)
+# docker run -d -p 4222:4222 nats:latest -js
+
+# 3. Configure and Publish
+# config/initializers/nats_pubsub.rb
+NatsPubsub.configure do |config|
+  config.nats_urls = "nats://localhost:4222"
+  config.app_name = "my-app"
+  config.env = "development"
+end
+
+# In your code
+NatsPubsub.publish(
+  topic: "user.created",
+  message: { id: 123, name: "Alice" }
+)
+
+# 4. Create a Subscriber
+# app/subscribers/user_subscriber.rb
+class UserSubscriber < NatsPubsub::Subscriber
+  subscribe_to "users.created"
+
+  def handle(message, context)
+    puts "New user: #{message['name']}"
+    # Your logic here
+  end
+end
+
+# 5. Start Processing
+# bundle exec nats_pubsub
+```
+
+That's it! You're now publishing and consuming messages with NATS JetStream.
+
 ## Table of Contents
 
+- [Quick Start](#-quick-start---5-minutes)
 - [Features](#-features)
-- [Installation](#-install)
-- [Prerequisites](#prerequisites)
+- [Install](#-install)
 - [Configuration](#-configure)
-- [Environment Variables](#environment-variables)
 - [Subject Pattern](#-subject-pattern)
 - [Declarative Subscribers](#-declarative-subscribers)
-- [Publishing Events](#-publish-events)
-- [Running Subscribers](#-run-subscribers)
+- [Publish Events](#-publish-events)
+- [Run Subscribers](#-run-subscribers)
 - [Middleware](#-middleware)
-- [Inbox/Outbox Pattern](#-inboxoutbox-pattern)
+- [Inbox/Outbox Pattern](#%EF%B8%8F-inboxoutbox-pattern)
 - [Testing](#-testing)
 - [Web UI](#-web-ui)
 - [Rails Integration](#-rails-integration)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
+- [Best Practices](#-best-practices)
 - [License](#-license)
 
 ---
 
 ## ✨ Features
 
-- 🎯 **Declarative API** - Familiar pattern for defining subscribers
-- 🔌 **Simple Publishing** - `NatsPubsub.publish(domain, resource, action, payload)`
-- 🛡️ **Outbox** (reliable send) & **Inbox** (idempotent receive), opt-in
-- 🧨 **DLQ** for poison messages
-- ⚙️ Durable `pull_subscribe` with backoff & `max_deliver`
-- 📊 **Web UI** - Monitor Inbox/Outbox events, retry failures, view details
-- 🧪 **Testing helpers** - Fake mode, inline mode, and RSpec matchers
-- 🔗 **ActiveRecord integration** - Auto-publish model events
-- 🎭 **Middleware system** - Extensible processing pipeline
-- 🚀 **CLI executable** - Run subscribers with concurrency control
-- 🧱 **Overlap-safe stream provisioning** - Prevents "subjects overlap" errors
-- ⚡️ **Eager-loaded models** via Railtie (production)
-- 📊 Configurable logging with sensible defaults
+- 🎯 **Topic-Based Messaging** - Simple, hierarchical topic pattern (e.g., `orders.created`, `users.updated`)
+- 🔌 **Declarative Subscribers** - `subscribe_to 'orders.created'` - clean DSL for defining subscribers
+- 🌲 **Wildcard Subscriptions** - Support for `*` (single level) and `>` (multi-level) wildcards
+- 🛡️ **Outbox** (reliable send) & **Inbox** (idempotent receive), opt-in for transactional guarantees
+- 🧨 **Dead Letter Queue** - Automatic handling of failed messages after max retries
+- ⚙️ **Durable Pull Consumers** - Reliable message delivery with exponential backoff
+- 📊 **Web UI** - Monitor Inbox/Outbox events, retry failures, view message details
+- 🧪 **Testing Helpers** - Fake mode, inline mode, and RSpec matchers for easy testing
+- 🔗 **ActiveRecord Integration** - Auto-publish model events with callbacks
+- 🎭 **Middleware System** - Extensible processing pipeline for cross-cutting concerns
+- 🚀 **CLI Executable** - Run subscribers with concurrency control and graceful shutdown
+- 🧱 **Auto-Topology Management** - Automatic JetStream stream creation, prevents overlap errors
+- ⚡️ **Rails Integration** - Railtie for eager loading, generators for setup
+- 📊 **Structured Logging** - Configurable logging with sensible defaults
 
 ---
 
@@ -132,61 +177,105 @@ cp .env.example .env
 
 ## 📡 Subject Pattern
 
-NatsPubsub uses a PubSub event pattern:
+NatsPubsub uses a **topic-based subject pattern**:
 
 ```md
-{env}.events.{domain}.{resource}.{action}
+{env}.{app_name}.{topic}
 ```
+
+**Components:**
+
+- `env` - Environment (production, staging, development) for isolation
+- `app_name` - Your application/service name for multi-service communication
+- `topic` - Hierarchical topic using dot notation (e.g., `order.created`, `user.updated`)
 
 **Examples:**
 
-- `production.events.users.user.created`
-- `production.events.orders.order.placed`
-- `staging.events.payments.payment.completed`
+- `production.myapp.order.created`
+- `production.myapp.user.updated`
+- `staging.payment-service.payment.completed`
+- `development.shop.notification.email`
+
+**Wildcard Support:**
+
+- `*` - Matches exactly one token: `production.myapp.user.*` matches `user.created`, `user.updated`
+- `>` - Matches one or more tokens: `production.myapp.order.>` matches all order-related topics
+
+**DLQ Subject:**
+
+Failed messages are automatically routed to:
+
+```md
+{env}.dlq
+```
 
 ---
 
 ## 🎯 Declarative Subscribers
 
-### Using Class-based Approach
+### Basic Subscriber
 
 ```ruby
-# app/subscribers/user_activity_subscriber.rb
-class UserActivitySubscriber < NatsPubsub::Subscriber
-  subscribe_to "production.events.users.user.*", retry: 3, ack_wait: 60_000
+# app/subscribers/order_created_subscriber.rb
+class OrderCreatedSubscriber < NatsPubsub::Subscriber
+  subscribe_to "order.created"
 
-  def call(event, metadata)
-    logger.info "User #{metadata[:action]}: #{event['name']}"
+  def handle(message, context)
+    # context provides: event_id, trace_id, topic, occurred_at, deliveries
+    logger.info "Processing order: #{message['order_id']}"
+
     # Your idempotent domain logic here
+    OrderProcessor.process(message)
   end
 end
 ```
 
-### Multiple Subjects
+### Wildcard Subscriptions
+
+```ruby
+# Subscribe to all user-related topics
+class UserActivitySubscriber < NatsPubsub::Subscriber
+  subscribe_to "user.*"  # Matches user.created, user.updated, user.deleted
+
+  jetstream_options retry: 3, ack_wait: 60_000
+
+  def handle(message, context)
+    logger.info "User activity: #{context.topic}"
+
+    case context.topic
+    when "user.created"
+      handle_user_created(message)
+    when "user.updated"
+      handle_user_updated(message)
+    when "user.deleted"
+      handle_user_deleted(message)
+    end
+  end
+end
+```
+
+### Multiple Topics
 
 ```ruby
 class EmailNotificationSubscriber < NatsPubsub::Subscriber
-  subscribe_to [
-    "production.events.users.user.created",
-    "production.events.orders.order.placed"
-  ]
+  subscribe_to "user.created", "order.placed"
 
-  def call(event, metadata)
-    case metadata[:subject]
-    when /users\.user\.created/
-      send_welcome_email(event)
-    when /orders\.order\.placed/
-      send_order_confirmation(event)
+  def handle(message, context)
+    case context.topic
+    when "user.created"
+      send_welcome_email(message)
+    when "order.placed"
+      send_order_confirmation(message)
     end
   end
 
   private
 
-  def send_welcome_email(event)
+  def send_welcome_email(message)
     # Implementation
   end
 
-  def send_order_confirmation(event)
+  def send_order_confirmation(message)
     # Implementation
   end
 end
@@ -196,27 +285,48 @@ end
 
 ## 📤 Publish Events
 
-### Simple API
+### Basic Publishing
 
 ```ruby
-NatsPubsub.publish("users", "user", "created", {
-  id: user.id,
-  name: user.name,
-  email: user.email
+# Simple topic publishing (keyword arguments)
+NatsPubsub.publish(topic: "order.created", message: {
+  order_id: order.id,
+  customer_id: order.customer_id,
+  total: order.total
 })
+
+# Or using positional arguments
+NatsPubsub.publish("order.created", {
+  order_id: order.id,
+  customer_id: order.customer_id,
+  total: order.total
+})
+```
+
+### Multi-Topic Publishing
+
+```ruby
+# Publish to multiple topics at once (fan-out)
+NatsPubsub.publish(
+  topics: ["order.created", "notification.email", "audit.order"],
+  message: {
+    order_id: order.id,
+    customer_id: order.customer_id,
+    total: order.total
+  }
+)
 ```
 
 ### With Options
 
 ```ruby
 NatsPubsub.publish(
-  "users",
-  "user",
-  "created",
+  "user.created",
   { id: user.id, name: user.name },
   event_id: SecureRandom.uuid,
   trace_id: request_id,
-  occurred_at: Time.current
+  occurred_at: Time.current,
+  message_type: "UserCreated"
 )
 ```
 
@@ -227,11 +337,14 @@ NatsPubsub.publish(
 User.transaction do
   user = User.create!(params)
 
-  NatsPubsub.publish_via_outbox("users", "user", "created", {
-    id: user.id,
-    name: user.name,
-    email: user.email
-  })
+  NatsPubsub.publish_via_outbox(
+    topic: "user.created",
+    message: {
+      id: user.id,
+      name: user.name,
+      email: user.email
+    }
+  )
 end
 ```
 
@@ -355,19 +468,53 @@ end
 
 ## 📬 Envelope Format
 
+### Topic-Based Envelope
+
 ```json
 {
-  "event_id": "01H1234567890ABCDEF",
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
   "schema_version": 1,
-  "event_type": "created",
+  "topic": "user.created",
+  "message_type": "UserCreated",
   "producer": "myapp",
-  "resource_type": "user",
-  "resource_id": "01H1234567890ABCDEF",
-  "occurred_at": "2025-08-13T21:00:00Z",
-  "trace_id": "abc123",
-  "payload": { "id": "01H...", "name": "Ada" }
+  "occurred_at": "2025-11-16T22:00:00Z",
+  "trace_id": "abc123def456",
+  "message": {
+    "id": "01H1234567890ABCDEF",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com"
+  }
 }
 ```
+
+### Domain/Resource/Action Envelope (Legacy)
+
+```json
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "schema_version": 1,
+  "domain": "users",
+  "resource": "user",
+  "action": "created",
+  "producer": "myapp",
+  "resource_id": "01H1234567890ABCDEF",
+  "occurred_at": "2025-11-16T22:00:00Z",
+  "trace_id": "abc123def456",
+  "payload": {
+    "id": "01H1234567890ABCDEF",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com"
+  }
+}
+```
+
+**Common Fields:**
+
+- `event_id` - Unique identifier for idempotency (UUID)
+- `schema_version` - Envelope schema version (currently 1)
+- `producer` - Application name that published the event
+- `occurred_at` - ISO8601 timestamp when event occurred
+- `trace_id` - Distributed tracing identifier (optional)
 
 ---
 
@@ -502,13 +649,27 @@ Access at: `http://localhost:3000/nats_pubsub`
 ### Generators
 
 ```bash
-# Generate subscriber
-rails generate nats_pubsub:subscriber UserActivity
-
-# Generate migrations for Inbox/Outbox
+# Generate everything (initializer + migrations)
 rails generate nats_pubsub:install
 rails db:migrate
+
+# Or generate individually
+rails generate nats_pubsub:initializer
+rails generate nats_pubsub:migrations
+
+# Skip specific parts
+rails generate nats_pubsub:install --skip-migrations
+rails generate nats_pubsub:install --skip-initializer
+
+# Generate subscriber (coming soon)
+# rails generate nats_pubsub:subscriber UserActivity
 ```
+
+The install generator creates:
+
+- `config/initializers/nats_pubsub.rb` - Configuration file
+- `db/migrate/*_create_nats_pubsub_outbox.rb` - Outbox pattern table
+- `db/migrate/*_create_nats_pubsub_inbox.rb` - Inbox pattern table
 
 ### ActiveRecord Callbacks
 
@@ -652,6 +813,129 @@ bundle exec rspec --format documentation
 bundle exec rubocop
 bundle exec rubocop -a # Auto-fix
 ```
+
+### Release Scripts
+
+The repository includes helper scripts for managing releases:
+
+```bash
+# Check release status
+./scripts/release-status.sh
+
+# Preview pending releases
+./scripts/release-preview.sh
+
+# Run pre-release checks
+./scripts/release-check.sh
+
+# Validate Ruby version (for maintainers)
+./scripts/ruby-version-sync.sh
+```
+
+**What the scripts check:**
+
+- Git status and branch
+- Pending changesets
+- Node.js, pnpm, and Ruby installations
+- JavaScript and Ruby tests
+- Build processes
+- Publishing credentials
+- Version consistency
+
+See [scripts/README.md](../../scripts/README.md) for detailed documentation.
+
+---
+
+## 💡 Best Practices
+
+### Message Design
+
+**Recommended practices:**
+
+- ✅ Use topic-based pattern for new applications (simpler, more flexible)
+- ✅ Keep message payloads small and focused
+- ✅ Include all necessary data to avoid additional lookups
+- ✅ Use semantic versioning for message types
+- ✅ Include `event_id` for idempotency tracking
+
+**Avoid:**
+
+- ❌ Include sensitive data (passwords, tokens) in messages
+- ❌ Create circular dependencies between services
+- ❌ Use messages as a database replacement
+- ❌ Publish events for every single field change
+
+### Subscriber Design
+
+**Recommended practices:**
+
+- ✅ Make subscribers idempotent (safe to process multiple times)
+- ✅ Keep processing logic fast and focused
+- ✅ Use database transactions when modifying data
+- ✅ Log processing errors with context
+- ✅ Handle partial failures gracefully
+
+**Avoid:**
+
+- ❌ Block on external API calls without timeout
+- ❌ Perform expensive operations synchronously
+- ❌ Assume message ordering (unless using same subject)
+- ❌ Retry indefinitely without backoff
+- ❌ Swallow exceptions silently
+
+### Performance
+
+**Recommended practices:**
+
+- ✅ Enable Inbox pattern for automatic deduplication
+- ✅ Use connection pooling for database operations
+- ✅ Monitor memory usage and tune concurrency
+- ✅ Cache frequently accessed data
+- ✅ Use indexes on Inbox/Outbox tables
+
+**Avoid:**
+
+- ❌ Set concurrency too high (causes memory issues)
+- ❌ Process messages synchronously in web requests
+- ❌ Skip database indexes on event tables
+- ❌ Ignore DLQ messages indefinitely
+- ❌ Run subscribers in the same process as web server
+
+### Security
+
+**Recommended practices:**
+
+- ✅ Use TLS for NATS connections in production
+- ✅ Enable authentication on NATS server
+- ✅ Rotate credentials regularly
+- ✅ Validate and sanitize all incoming messages
+- ✅ Use environment variables for secrets
+
+**Avoid:**
+
+- ❌ Commit credentials to version control
+- ❌ Trust message data without validation
+- ❌ Expose Web UI publicly without authentication
+- ❌ Use default NATS passwords
+- ❌ Skip input sanitization
+
+### Monitoring
+
+**Recommended practices:**
+
+- ✅ Monitor DLQ message count
+- ✅ Track message processing latency
+- ✅ Alert on consumer lag
+- ✅ Log all publishing failures
+- ✅ Monitor Outbox table growth
+
+**Avoid:**
+
+- ❌ Ignore steadily growing DLQ
+- ❌ Skip health checks in production
+- ❌ Assume everything works without monitoring
+- ❌ Overlook memory leak patterns
+- ❌ Ignore slow query warnings
 
 ---
 

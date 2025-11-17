@@ -1,11 +1,12 @@
 {
   "name": "nats-pubsub",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Declarative PubSub messaging for NATS JetStream (Node.js/TypeScript)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "import": {
@@ -16,14 +17,31 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
-    }
+    },
+    "./testing": {
+      "import": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing/index.js"
+      },
+      "require": {
+        "types": "./dist/testing/index.d.cts",
+        "default": "./dist/testing/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "nats-pubsub": "./dist/cli/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
-    "build:watch": "tsup src/index.ts --format cjs,esm --dts --sourcemap --watch",
+    "build": "tsup src/index.ts src/cli/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "build:watch": "tsup src/index.ts src/cli/index.ts --format cjs,esm --dts --sourcemap --watch",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
@@ -38,7 +56,17 @@
     "pubsub",
     "messaging",
     "event-driven",
-    "microservices"
+    "microservices",
+    "typescript",
+    "decorators",
+    "pub-sub",
+    "message-queue",
+    "event-bus",
+    "nats.io",
+    "distributed-systems",
+    "async-messaging",
+    "dlq",
+    "dead-letter-queue"
   ],
   "author": "Mike Attara <mpyebattara@gmail.com>",
   "license": "MIT",
@@ -51,8 +79,14 @@
     "url": "https://github.com/attaradev/nats_pubsub/issues"
   },
   "homepage": "https://github.com/attaradev/nats_pubsub#readme",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/attaradev"
+  },
   "dependencies": {
-    "nats": "^2.29.0"
+    "commander": "^14.0.2",
+    "nats": "^2.29.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

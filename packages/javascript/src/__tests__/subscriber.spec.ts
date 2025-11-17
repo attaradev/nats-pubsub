@@ -1,19 +1,19 @@
-import { BaseSubscriber } from '../subscriber';
+import { Subscriber } from '../subscribers/subscriber';
 import { EventMetadata } from '../types';
 
-class TestSubscriber extends BaseSubscriber {
+class TestSubscriber extends Subscriber {
   public callHandler = jest.fn();
 
   constructor(subjects: string | string[]) {
     super(subjects);
   }
 
-  async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
+  async handle(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {
     this.callHandler(event, metadata);
   }
 }
 
-describe('BaseSubscriber', () => {
+describe('Subscriber', () => {
   describe('constructor', () => {
     it('should accept single subject string', () => {
       const subscriber = new TestSubscriber('test.events.users.user.created');
@@ -21,10 +21,7 @@ describe('BaseSubscriber', () => {
     });
 
     it('should accept array of subjects', () => {
-      const subjects = [
-        'test.events.users.user.created',
-        'test.events.users.user.updated',
-      ];
+      const subjects = ['test.events.users.user.created', 'test.events.users.user.updated'];
       const subscriber = new TestSubscriber(subjects);
       expect(subscriber.subjects).toEqual(subjects);
     });
@@ -76,7 +73,7 @@ describe('BaseSubscriber', () => {
         resource: 'user',
       };
 
-      await subscriber.call(event, metadata);
+      await subscriber.handle(event, metadata);
 
       expect(subscriber.callHandler).toHaveBeenCalledWith(event, metadata);
     });
@@ -97,7 +94,7 @@ describe('BaseSubscriber', () => {
         resource: 'order',
       };
 
-      await subscriber.call(event, metadata);
+      await subscriber.handle(event, metadata);
 
       expect(subscriber.callHandler).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -120,7 +117,7 @@ describe('BaseSubscriber', () => {
         resource: 'payment',
       };
 
-      await subscriber.call(event, metadata);
+      await subscriber.handle(event, metadata);
 
       const receivedMetadata = subscriber.callHandler.mock.calls[0][1];
       expect(receivedMetadata.domain).toBe('payments');
@@ -129,8 +126,8 @@ describe('BaseSubscriber', () => {
     });
 
     it('should handle errors in call implementation', async () => {
-      class ErrorSubscriber extends BaseSubscriber {
-        async call(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
+      class ErrorSubscriber extends Subscriber {
+        async handle(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
           throw new Error('Processing error');
         }
       }
@@ -145,12 +142,12 @@ describe('BaseSubscriber', () => {
         resource: 'test',
       };
 
-      await expect(subscriber.call(event, metadata)).rejects.toThrow('Processing error');
+      await expect(subscriber.handle(event, metadata)).rejects.toThrow('Processing error');
     });
 
     it('should support async operations', async () => {
-      class AsyncSubscriber extends BaseSubscriber {
-        async call(event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
+      class AsyncSubscriber extends Subscriber {
+        async handle(event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
           await new Promise((resolve) => setTimeout(resolve, 10));
           event.processed = true;
         }
@@ -166,7 +163,7 @@ describe('BaseSubscriber', () => {
         resource: 'test',
       };
 
-      await subscriber.call(event, metadata);
+      await subscriber.handle(event, metadata);
 
       expect(event.processed).toBe(true);
     });
@@ -197,12 +194,12 @@ describe('BaseSubscriber', () => {
 
   describe('inheritance', () => {
     it('should allow custom subscriber classes', () => {
-      class UserCreatedSubscriber extends BaseSubscriber {
+      class UserCreatedSubscriber extends Subscriber {
         constructor() {
           super('production.events.users.user.created');
         }
 
-        async call(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
           // Custom logic
         }
       }
@@ -212,14 +209,14 @@ describe('BaseSubscriber', () => {
     });
 
     it('should support subscriber with custom properties', () => {
-      class CustomSubscriber extends BaseSubscriber {
+      class CustomSubscriber extends Subscriber {
         private retryCount: number = 0;
 
         constructor(subjects: string | string[]) {
           super(subjects);
         }
 
-        async call(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
+        async handle(_event: Record<string, unknown>, _metadata: EventMetadata): Promise<void> {
           this.retryCount++;
         }
 

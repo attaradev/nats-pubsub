@@ -1,0 +1,117 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+
+class <%= subscriber_class_name %>Test < ActiveSupport::TestCase
+  def setup
+    @subscriber = <%= subscriber_class_name %>.new
+    @event_id = SecureRandom.uuid
+    @trace_id = SecureRandom.uuid
+    @context = NatsPubsub::Core::MessageContext.new(
+      event_id: @event_id,
+      trace_id: @trace_id,
+      topic: '<%= example_topic %>',
+      subject: 'test.app.<%= example_topic %>',
+      deliveries: 1,
+      timestamp: Time.current
+    )
+
+    # Enable fake mode for testing
+    NatsPubsub::Testing.fake!
+  end
+
+  def teardown
+    NatsPubsub::Testing.clear!
+  end
+
+  test 'subscribes to correct topics' do
+    subscriptions = <%= subscriber_class_name %>.all_subscriptions
+<% all_topics.each do |topic| -%>
+    assert_includes subscriptions.map { |s| s[:topic] }, '<%= topic %>'
+<% end -%>
+  end
+
+  test 'processes valid message successfully' do
+    message = {
+      'event_id' => @event_id,
+      'domain' => '<%= example_topic.split('.').first %>',
+      'resource' => '<%= example_topic.split('.')[1] || 'resource' %>',
+      'action' => 'created',
+      'data' => {
+        'id' => 1,
+        'name' => 'Test <%= class_name %>'
+      }
+    }
+
+    assert_nothing_raised do
+      @subscriber.handle(message, @context)
+    end
+  end
+
+  test 'logs processing information' do
+    message = {
+      'event_id' => @event_id,
+      'action' => 'created',
+      'data' => { 'id' => 1 }
+    }
+
+    Rails.logger.expects(:info).with(regexp_matches(/Processing message/))
+    @subscriber.handle(message, @context)
+  end
+
+  # TODO: Add specific test cases for your business logic
+  # test 'creates expected record' do
+  #   message = {
+  #     'event_id' => @event_id,
+  #     'action' => 'created',
+  #     'data' => { 'id' => 1, 'name' => 'Test' }
+  #   }
+  #
+  #   assert_difference 'YourModel.count', 1 do
+  #     @subscriber.handle(message, @context)
+  #   end
+  # end
+
+  test 'handles missing data' do
+    message = {}
+
+    # TODO: Implement based on your error handling strategy
+    # assert_nothing_raised do
+    #   @subscriber.handle(message, @context)
+    # end
+    # OR
+    # assert_raises StandardError do
+    #   @subscriber.handle(message, @context)
+    # end
+  end
+
+  test 'logs errors when processing fails' do
+    message = {
+      'event_id' => @event_id,
+      'action' => 'created',
+      'data' => { 'id' => 1 }
+    }
+
+    # Simulate a processing failure
+    # YourService.stubs(:call).raises(StandardError, 'Processing failed')
+
+    # TODO: Implement based on your error handling
+    # Rails.logger.expects(:error).at_least_once
+    # assert_raises StandardError do
+    #   @subscriber.handle(message, @context)
+    # end
+  end
+
+  # Optional: Test custom error handling
+  # test 'returns appropriate error action' do
+  #   error_context = NatsPubsub::Core::ErrorContext.new(
+  #     error: StandardError.new('Test error'),
+  #     message: {},
+  #     context: stub(event_id: 'test-id'),
+  #     attempts: 1
+  #   )
+  #
+  #   result = @subscriber.on_error(error_context)
+  #   assert_equal NatsPubsub::Core::ErrorAction::RETRY, result
+  # end
+end

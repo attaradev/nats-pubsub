@@ -1,19 +1,38 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["./src/index.ts"],
+  "entryPoints": ["src/index.ts"],
   "out": "docs",
   "plugin": [],
-  "name": "NatsPubsub - JavaScript/TypeScript",
-  "readme": "README.md",
+  "theme": "default",
+  "name": "nats-pubsub API Documentation",
   "includeVersion": true,
-  "sort": ["source-order"],
+  "readme": "README.md",
   "excludePrivate": true,
   "excludeProtected": false,
   "excludeExternals": true,
   "categorizeByGroup": true,
-  "navigationLinks": {
-    "GitHub": "https://github.com/attaradev/nats_pubsub",
-    "npm": "https://www.npmjs.com/package/nats-pubsub"
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Core",
+    "Publisher",
+    "Subscriber",
+    "Consumer",
+    "Middleware",
+    "DLQ",
+    "Topology",
+    "Validation",
+    "Testing",
+    "Types",
+    "*"
+  ],
+  "sort": ["source-order"],
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
   },
-  "theme": "default"
+  "treatWarningsAsErrors": false,
+  "cleanOutputDir": true,
+  "gitRevision": "main",
+  "sourceLinkTemplate": "https://github.com/attaradev/nats-pubsub/blob/{gitRevision}/packages/javascript/{path}#L{line}"
 }

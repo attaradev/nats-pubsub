@@ -1,0 +1,29 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main NATS-inspired design -->
+  <g transform="translate(100, 100)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#27c9b6" stroke-width="6"/>
+
+    <!-- Connection nodes (representing pub/sub) -->
+    <circle cx="0" cy="-57" r="14" fill="#27c9b6"/>
+    <circle cx="49" cy="-28" r="14" fill="#20a89a"/>
+    <circle cx="49" cy="28" r="14" fill="#1a8778"/>
+    <circle cx="0" cy="57" r="14" fill="#27c9b6"/>
+    <circle cx="-49" cy="28" r="14" fill="#20a89a"/>
+    <circle cx="-49" cy="-28" r="14" fill="#1a8778"/>
+
+    <!-- Center hub -->
+    <circle cx="0" cy="0" r="35" fill="#27c9b6"/>
+
+    <!-- Connection lines (representing message flow) -->
+    <line x1="0" y1="-57" x2="0" y2="-35" stroke="#27c9b6" stroke-width="4" opacity="0.6"/>
+    <line x1="49" y1="-28" x2="29" y2="-17" stroke="#20a89a" stroke-width="4" opacity="0.6"/>
+    <line x1="49" y1="28" x2="29" y2="17" stroke="#1a8778" stroke-width="4" opacity="0.6"/>
+    <line x1="0" y1="57" x2="0" y2="35" stroke="#27c9b6" stroke-width="4" opacity="0.6"/>
+    <line x1="-49" y1="28" x2="-29" y2="17" stroke="#20a89a" stroke-width="4" opacity="0.6"/>
+    <line x1="-49" y1="-28" x2="-29" y2="-17" stroke="#1a8778" stroke-width="4" opacity="0.6"/>
+
+    <!-- N letter -->
+    <text x="0" y="14" font-family="Arial, sans-serif" font-size="38" font-weight="bold" fill="white" text-anchor="middle">N</text>
+  </g>
+</svg>

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'core/logging'
-require_relative 'subscriber_registry'
+require_relative 'subscribers/registry'
 
 module NatsPubsub
   # CLI for running NatsPubsub subscribers
@@ -40,9 +40,9 @@ module NatsPubsub
     end
 
     def discover_subscribers
-      SubscriberRegistry.instance.discover_subscribers!
+      Subscribers::Registry.instance.discover_subscribers!
 
-      subscribers = SubscriberRegistry.instance.all_subscribers
+      subscribers = Subscribers::Registry.instance.all_subscribers
       return unless subscribers.empty?
 
       Logging.warn(
@@ -53,11 +53,11 @@ module NatsPubsub
     end
 
     def start_pool
-      # Load ConsumerPool (lazy load to avoid circular dependencies)
-      require_relative 'consumer_pool'
+      # Load Pool (lazy load to avoid circular dependencies)
+      require_relative 'subscribers/pool'
 
       concurrency = @options[:concurrency] || NatsPubsub.config.concurrency || 5
-      @pool = ConsumerPool.new(concurrency: concurrency)
+      @pool = Subscribers::Pool.new(concurrency: concurrency)
 
       Thread.new do
         @pool.start!

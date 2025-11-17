@@ -1,53 +1,64 @@
 #!/bin/bash
 # Release Status - Show what's pending release
 
-set -e
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
-echo "📦 Release Status for NatsPubsub Monorepo"
-echo "=========================================="
-echo ""
+# Main function
+main() {
+  ensure_repo_root || exit 1
+  ensure_changesets || exit 1
 
-# Check if changesets exist
-if [ ! -d ".changeset" ]; then
-  echo "❌ Changesets not initialized. Run: pnpm changeset init"
-  exit 1
-fi
+  print_header "📦 Release Status for NatsPubsub Monorepo"
 
-# Count pending changesets
-CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l | tr -d ' ')
+  # Get changeset count
+  local changeset_count
+  changeset_count=$(count_changesets)
 
-if [ "$CHANGESET_COUNT" -eq 0 ]; then
-  echo "✅ No pending changesets"
-  echo ""
-  echo "📊 Current Versions:"
-  echo ""
+  if [ "$changeset_count" -eq 0 ]; then
+    log_success "No pending changesets"
+    show_current_versions
+    echo ""
+    log_info "To prepare a release, run: pnpm changeset"
+  else
+    echo "📝 Pending Changesets: $changeset_count"
+    echo ""
 
-  # Show current JavaScript version
-  if [ -f "packages/javascript/package.json" ]; then
-    JS_VERSION=$(node -p "require('./packages/javascript/package.json').version")
-    echo "  JavaScript (npm): v$JS_VERSION"
-    echo "    Latest tag: $(git describe --tags --abbrev=0 --match "javascript-v*" 2>/dev/null || echo "No tags yet")"
+    # Require pnpm for changeset status
+    if require_command pnpm "Install pnpm: npm install -g pnpm"; then
+      pnpm changeset status --verbose
+    fi
+
+    echo ""
+    log_info "To create a release PR, merge these changes to develop"
+    log_info "To preview versions, run: pnpm release:preview"
   fi
 
-  # Show current Ruby version
-  if [ -f "packages/ruby/lib/nats_pubsub/version.rb" ]; then
-    RUBY_VERSION=$(ruby -e "require_relative 'packages/ruby/lib/nats_pubsub/version.rb'; puts NatsPubsub::VERSION")
-    echo "  Ruby (gem): v$RUBY_VERSION"
-    echo "    Latest tag: $(git describe --tags --abbrev=0 --match "ruby-v*" 2>/dev/null || echo "No tags yet")"
+  echo ""
+}
+
+# Show current package versions
+show_current_versions() {
+  print_section "Current Versions"
+
+  # JavaScript version
+  if require_command node >/dev/null 2>&1 && [ -f "$JS_PACKAGE_JSON" ]; then
+    local js_version
+    js_version=$(get_js_version)
+    echo "  JavaScript (npm): v$js_version"
+    echo "    Latest tag: $(get_latest_tag javascript)"
   fi
 
-  echo ""
-  echo "💡 To prepare a release, run: pnpm changeset"
-else
-  echo "📝 Pending Changesets: $CHANGESET_COUNT"
-  echo ""
+  # Ruby version
+  if [ -f "$RUBY_VERSION_FILE" ]; then
+    local ruby_version
+    ruby_version=$(get_ruby_version)
+    echo "  Ruby (gem): v$ruby_version"
+    echo "    Latest tag: $(get_latest_tag ruby)"
+  fi
+}
 
-  # Run changesets status
-  pnpm changeset status --verbose
-
-  echo ""
-  echo "💡 To create a release PR, merge these changes to develop"
-  echo "💡 To preview versions, run: pnpm release:preview"
-fi
-
-echo ""
+# Run main function
+main "$@"

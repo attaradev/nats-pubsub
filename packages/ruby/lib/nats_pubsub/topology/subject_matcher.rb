@@ -13,28 +13,28 @@ module NatsPubsub
     # - '*' matches exactly one token
     # - '>' matches the rest (zero or more tokens)
     def match?(pattern, subject)
-      p = pattern.split('.')
-      s = subject.split('.')
+      pattern_tokens = pattern.split('.')
+      subject_tokens = subject.split('.')
 
-      i = 0
-      while i < p.length && i < s.length
-        token = p[i]
-        case token
+      index = 0
+      while index < pattern_tokens.length && index < subject_tokens.length
+        pattern_token = pattern_tokens[index]
+        case pattern_token
         when '>'
           return true # tail wildcard absorbs the rest
         when '*'
           # matches this token; continue
         else
-          return false unless token == s[i]
+          return false unless pattern_token == subject_tokens[index]
         end
-        i += 1
+        index += 1
       end
 
       # Exact match
-      return true if i == p.length && i == s.length
+      return true if index == pattern_tokens.length && index == subject_tokens.length
 
       # If pattern has remaining '>' it can absorb remainder
-      p[i] == '>' || p[i..]&.include?('>')
+      pattern_tokens[index] == '>' || pattern_tokens[index..]&.include?('>')
     end
 
     # Do two wildcard patterns admit at least one same subject?
@@ -43,22 +43,22 @@ module NatsPubsub
     end
 
     def overlap_parts?(a_parts, b_parts)
-      ai = 0
-      bi = 0
-      while ai < a_parts.length && bi < b_parts.length
-        at = a_parts[ai]
-        bt = b_parts[bi]
-        return true if tail?(at, bt)
-        return false unless token_match?(at, bt)
+      a_index = 0
+      b_index = 0
+      while a_index < a_parts.length && b_index < b_parts.length
+        a_token = a_parts[a_index]
+        b_token = b_parts[b_index]
+        return true if has_tail_wildcard?(a_token, b_token)
+        return false unless token_match?(a_token, b_token)
 
-        ai += 1
-        bi += 1
+        a_index += 1
+        b_index += 1
       end
 
-      tail_overlap?(a_parts[ai..], b_parts[bi..])
+      tail_overlap?(a_parts[a_index..], b_parts[b_index..])
     end
 
-    def tail?(a_token, b_token)
+    def has_tail_wildcard?(a_token, b_token)
       a_token == '>' || b_token == '>'
     end
 

@@ -1,57 +1,106 @@
 # frozen_string_literal: true
 
 require 'oj'
-require 'securerandom'
 require_relative '../core/connection'
 require_relative '../core/logging'
 require_relative '../core/config'
-require_relative '../core/model_utils'
+require_relative '../core/retry_strategy'
+require_relative '../models/model_utils'
+require_relative 'envelope_builder'
 require_relative 'outbox_repository'
+require_relative 'outbox_publisher'
+require_relative 'publish_result'
+require_relative 'publish_argument_parser'
 
 module NatsPubsub
   # Publisher for PubSub events
+  # Provides a unified interface for publishing messages using either topics or domain/resource/action patterns
   class Publisher
     DEFAULT_RETRIES = 2
-    RETRY_BACKOFFS  = [0.25, 1.0].freeze
-
-    TRANSIENT_ERRORS = begin
-      errs = [NATS::IO::Timeout, NATS::IO::Error]
-      errs << NATS::IO::SocketTimeoutError if defined?(NATS::IO::SocketTimeoutError)
-      errs.freeze
-    end
 
     def initialize
       @jts = Connection.connect!
     end
 
-    # Publish a PubSub event
-    # @param domain [String] Domain (e.g., 'users', 'orders')
-    # @param resource [String] Resource type (e.g., 'user', 'order')
-    # @param action [String] Action (e.g., 'created', 'updated', 'deleted')
-    # @param payload [Hash] Event payload
-    # @param options [Hash] Additional options (event_id, trace_id, occurred_at)
-    # @return [Boolean]
-    def publish_event(domain, resource, action, payload, **options)
-      subject = NatsPubsub.config.event_subject(domain, resource, action)
-      envelope = build_envelope(domain, resource, action, payload, options)
+    # Publish a message using one of the supported patterns:
+    # 1. Topic-based: publish(topic, message, **opts) or publish(topic:, message:, **opts)
+    # 2. Domain/resource/action: publish(domain:, resource:, action:, payload:, **opts)
+    # 3. Multi-topic: publish(topics:, message:, **opts)
+    #
+    # @return [PublishResult] Result object with success status and details
+    #
+    # @example Topic-based (positional)
+    #   result = publisher.publish('orders.created', { order_id: '123' })
+    #
+    # @example Topic-based (keyword)
+    #   result = publisher.publish(topic: 'orders.created', message: { order_id: '123' })
+    #
+    # @example Domain/resource/action
+    #   result = publisher.publish(domain: 'orders', resource: 'order', action: 'created', payload: { id: '123' })
+    #
+    # @example Multi-topic
+    #   result = publisher.publish(topics: ['orders.created', 'notifications.sent'], message: { id: '123' })
+    def publish(*args, **kwargs)
+      parse_result = PublishArgumentParser.parse(*args, **kwargs)
+      parse_result.call(self)
+    end
+
+    # Publish to a single topic (internal method)
+    def publish_to_topic(topic, message, **options)
+      subject = EnvelopeBuilder.build_subject(topic)
+      envelope = EnvelopeBuilder.build_topic_envelope(topic, message, options)
+      event_id = envelope['event_id']
 
       if NatsPubsub.config.use_outbox
-        publish_via_outbox(subject, envelope)
+        OutboxPublisher.publish(
+          subject: subject,
+          envelope: envelope,
+          event_id: event_id
+        ) { with_retries { do_publish(subject, envelope, event_id) } }
       else
-        with_retries { do_publish?(subject, envelope) }
+        with_retries { do_publish(subject, envelope, event_id) }
       end
     rescue StandardError => e
-      log_error(false, e)
+      log_error(subject, event_id, e)
+    end
+
+    # Publish using domain/resource/action pattern (internal method)
+    def publish_event(domain, resource, action, payload, **options)
+      topic = "#{domain}.#{resource}.#{action}"
+      subject = EnvelopeBuilder.build_subject(topic)
+      envelope = EnvelopeBuilder.build_event_envelope(domain, resource, action, payload, options)
+      event_id = envelope['event_id']
+
+      if NatsPubsub.config.use_outbox
+        OutboxPublisher.publish(
+          subject: subject,
+          envelope: envelope,
+          event_id: event_id
+        ) { with_retries { do_publish(subject, envelope, event_id) } }
+      else
+        with_retries { do_publish(subject, envelope, event_id) }
+      end
+    rescue StandardError => e
+      log_error(subject, event_id, e)
+    end
+
+    # Publish to multiple topics (internal method)
+    def publish_to_topics(topics, message, **options)
+      results = {}
+      topics.each do |topic|
+        results[topic] = publish_to_topic(topic, message, **options)
+      end
+      results
     end
 
     private
 
-    def do_publish?(subject, envelope)
-      headers = { 'nats-msg-id' => envelope['event_id'] }
+    def do_publish(subject, envelope, event_id)
+      headers = { 'nats-msg-id' => event_id }
 
       ack = @jts.publish(subject, Oj.dump(envelope, mode: :compat), header: headers)
       duplicate = ack.respond_to?(:duplicate?) && ack.duplicate?
-      msg = "Published #{subject} event_id=#{envelope['event_id']}"
+      msg = "Published #{subject} event_id=#{event_id}"
       msg += ' (duplicate)' if duplicate
 
       Logging.info(msg, tag: 'NatsPubsub::Publisher')
@@ -61,91 +110,47 @@ module NatsPubsub
           "Publish ack error: #{ack.error}",
           tag: 'NatsPubsub::Publisher'
         )
+        return PublishResult.failure(
+          reason: :publish_error,
+          details: "NATS ack error: #{ack.error}",
+          subject: subject,
+          error: ack.error
+        )
       end
 
-      !ack.respond_to?(:error) || ack.error.nil?
+      PublishResult.success(event_id: event_id, subject: subject)
     end
 
-    # ---- Outbox path ----
-    def publish_via_outbox(subject, envelope)
-      klass = ModelUtils.constantize(NatsPubsub.config.outbox_model)
 
-      unless ModelUtils.ar_class?(klass)
-        Logging.warn(
-          "Outbox model #{klass} is not an ActiveRecord model; publishing directly.",
-          tag: 'NatsPubsub::Publisher'
-        )
-        return with_retries { do_publish?(subject, envelope) }
-      end
-
-      repo     = OutboxRepository.new(klass)
-      event_id = envelope['event_id'].to_s
-      record   = repo.find_or_build(event_id)
-
-      if repo.already_sent?(record)
-        Logging.info(
-          "Outbox already sent event_id=#{event_id}; skipping publish.",
-          tag: 'NatsPubsub::Publisher'
-        )
-        return true
-      end
-
-      repo.persist_pre(record, subject, envelope)
-
-      ok = with_retries { do_publish?(subject, envelope) }
-      ok ? repo.persist_success(record) : repo.persist_failure(record, 'Publish returned false')
-      ok
-    rescue StandardError => e
-      repo.persist_exception(record, e) if defined?(repo) && defined?(record)
-      log_error(false, e)
-    end
-    # ---- /Outbox path ----
-
-    # Retry only on transient NATS IO errors
+    # Retry only on transient NATS IO errors using RetryStrategy
     def with_retries(retries = DEFAULT_RETRIES)
-      attempts = 0
-      begin
+      result = RetryStrategy.execute(retries: retries, operation_name: 'Publish') do
         yield
-      rescue *TRANSIENT_ERRORS => e
-        attempts += 1
-        return log_error(false, e) if attempts > retries
-
-        backoff(attempts, e)
-        retry
       end
-    end
-
-    def backoff(attempts, error)
-      delay = RETRY_BACKOFFS[attempts - 1] || RETRY_BACKOFFS.last
-      Logging.warn(
-        "Publish retry #{attempts} after #{error.class}: #{error.message}",
-        tag: 'NatsPubsub::Publisher'
+      result
+    rescue StandardError => e
+      # Return failure result for retry errors
+      subject = e.respond_to?(:subject) ? e.subject : 'unknown'
+      event_id = e.respond_to?(:event_id) ? e.event_id : 'unknown'
+      PublishResult.failure(
+        reason: :io_error,
+        details: "Retries exhausted: #{e.class} - #{e.message}",
+        subject: subject,
+        error: e
       )
-      sleep delay
     end
 
-    def log_error(val, exc)
+    def log_error(subject, event_id, exc)
       Logging.error(
         "Publish failed: #{exc.class} #{exc.message}",
         tag: 'NatsPubsub::Publisher'
       )
-      val
-    end
-
-    # Build envelope for PubSub events
-    def build_envelope(domain, resource, action, payload, options = {})
-      {
-        'event_id' => options[:event_id] || SecureRandom.uuid,
-        'schema_version' => 1,
-        'domain' => domain,
-        'resource' => resource,
-        'action' => action,
-        'producer' => NatsPubsub.config.app_name,
-        'resource_id' => (payload['id'] || payload[:id]).to_s,
-        'occurred_at' => (options[:occurred_at] || Time.now.utc).iso8601,
-        'trace_id' => options[:trace_id] || SecureRandom.hex(8),
-        'payload' => payload
-      }
+      PublishResult.failure(
+        reason: :exception,
+        details: "#{exc.class}: #{exc.message}",
+        subject: subject,
+        error: exc
+      )
     end
   end
 end

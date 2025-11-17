@@ -3,7 +3,7 @@
 require 'sinatra/base'
 require 'json'
 require 'erb'
-require_relative 'core/model_utils'
+require_relative 'models/model_utils'
 
 module NatsPubsub
   # Web UI for monitoring Inbox and Outbox events

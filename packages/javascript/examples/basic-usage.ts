@@ -1,5 +1,5 @@
 import NatsPubsub, {
-  BaseSubscriber,
+  Subscriber,
   EventMetadata,
   loggingMiddleware,
   retryLoggerMiddleware,
@@ -22,7 +22,7 @@ NatsPubsub.configure({
 });
 
 // 2. Define a subscriber
-class UserEventSubscriber extends BaseSubscriber {
+class UserEventSubscriber extends Subscriber {
   constructor() {
     super('development.events.users.user.*', {
       retry: 3,
@@ -43,12 +43,9 @@ class UserEventSubscriber extends BaseSubscriber {
 }
 
 // 3. Define another subscriber for multiple subjects
-class NotificationSubscriber extends BaseSubscriber {
+class NotificationSubscriber extends Subscriber {
   constructor() {
-    super([
-      'development.events.users.user.created',
-      'development.events.orders.order.placed',
-    ]);
+    super(['development.events.users.user.created', 'development.events.orders.order.placed']);
   }
 
   async call(event: Record<string, unknown>, metadata: EventMetadata): Promise<void> {

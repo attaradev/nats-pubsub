@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "nats-pubsub-dev"
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Scrape configurations
+scrape_configs:
+  # NATS Server metrics
+  - job_name: "nats"
+    static_configs:
+      - targets: ["nats-exporter:7777"]
+        labels:
+          service: "nats"
+          environment: "development"
+
+  # JavaScript Publisher metrics (if exposing Prometheus metrics)
+  - job_name: "js-publisher"
+    static_configs:
+      - targets: ["js-publisher:3001"]
+        labels:
+          service: "js-publisher"
+          environment: "development"
+    metrics_path: "/metrics"
+
+  # JavaScript Subscriber health checks
+  - job_name: "js-subscriber-health"
+    static_configs:
+      - targets: ["js-subscriber:3003"]
+        labels:
+          service: "js-subscriber"
+          environment: "development"
+    metrics_path: "/health"
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

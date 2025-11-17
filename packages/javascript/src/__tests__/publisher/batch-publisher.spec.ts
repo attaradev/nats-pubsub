@@ -1,15 +1,11 @@
 import { BatchPublisher } from '../../publisher/batch-publisher';
-import publisher from '../../publisher/publisher';
-import config from '../../core/config';
-
-// Mock dependencies
-jest.mock('../../publisher/publisher');
-jest.mock('../../core/config');
+import { Publisher } from '../../publisher/publisher';
 
 describe('BatchPublisher', () => {
   let batchPublisher: BatchPublisher;
   let mockPublish: jest.Mock;
   let mockLogger: any;
+  let mockPublisher: Publisher;
 
   beforeEach(() => {
     mockLogger = {
@@ -19,12 +15,12 @@ describe('BatchPublisher', () => {
       debug: jest.fn(),
     };
 
-    (config as any).logger = mockLogger;
-
     mockPublish = jest.fn().mockResolvedValue(undefined);
-    (publisher.publish as jest.Mock) = mockPublish;
+    mockPublisher = {
+      publish: mockPublish,
+    } as any;
 
-    batchPublisher = new BatchPublisher();
+    batchPublisher = new BatchPublisher(mockPublisher, mockLogger);
   });
 
   afterEach(() => {
@@ -144,10 +140,12 @@ describe('BatchPublisher', () => {
       await batchPublisher.publishBatch(items);
 
       expect(mockPublish).toHaveBeenCalledWith(
-        'users',
-        'user',
-        'created',
-        { id: '1', name: 'Alice' },
+        {
+          domain: 'users',
+          resource: 'user',
+          action: 'created',
+          payload: { id: '1', name: 'Alice' },
+        },
         {
           event_id: 'custom-id-1',
           trace_id: 'trace-123',
@@ -155,12 +153,8 @@ describe('BatchPublisher', () => {
       );
     });
 
-    it('should handle empty batch', async () => {
-      const result = await batchPublisher.publishBatch([]);
-
-      expect(result.successful).toBe(0);
-      expect(result.failed).toBe(0);
-      expect(result.errors).toHaveLength(0);
+    it('should throw error for empty batch', async () => {
+      await expect(batchPublisher.publishBatch([])).rejects.toThrow('Items array cannot be empty');
       expect(mockPublish).not.toHaveBeenCalled();
     });
 
@@ -265,26 +259,32 @@ describe('BatchPublisher', () => {
       expect(mockPublish).toHaveBeenCalledTimes(3);
       expect(mockPublish).toHaveBeenNthCalledWith(
         1,
-        'users',
-        'user',
-        'created',
-        { id: '1', name: 'Alice' },
+        {
+          domain: 'users',
+          resource: 'user',
+          action: 'created',
+          payload: { id: '1', name: 'Alice' },
+        },
         undefined
       );
       expect(mockPublish).toHaveBeenNthCalledWith(
         2,
-        'users',
-        'user',
-        'updated',
-        { id: '2', name: 'Bob' },
+        {
+          domain: 'users',
+          resource: 'user',
+          action: 'updated',
+          payload: { id: '2', name: 'Bob' },
+        },
         undefined
       );
       expect(mockPublish).toHaveBeenNthCalledWith(
         3,
-        'users',
-        'user',
-        'deleted',
-        { id: '3', name: 'Charlie' },
+        {
+          domain: 'users',
+          resource: 'user',
+          action: 'deleted',
+          payload: { id: '3', name: 'Charlie' },
+        },
         undefined
       );
     });
@@ -301,10 +301,12 @@ describe('BatchPublisher', () => {
       await batchPublisher.publishMany('users', 'user', events);
 
       expect(mockPublish).toHaveBeenCalledWith(
-        'users',
-        'user',
-        'created',
-        { id: '1', name: 'Alice' },
+        {
+          domain: 'users',
+          resource: 'user',
+          action: 'created',
+          payload: { id: '1', name: 'Alice' },
+        },
         { trace_id: 'trace-123' }
       );
     });
@@ -323,11 +325,10 @@ describe('BatchPublisher', () => {
       expect(result.failed).toBe(1);
     });
 
-    it('should handle empty events array', async () => {
-      const result = await batchPublisher.publishMany('users', 'user', []);
-
-      expect(result.successful).toBe(0);
-      expect(result.failed).toBe(0);
+    it('should throw error for empty events array', async () => {
+      await expect(batchPublisher.publishMany('users', 'user', [])).rejects.toThrow(
+        'Events must be a non-empty array'
+      );
       expect(mockPublish).not.toHaveBeenCalled();
     });
   });
