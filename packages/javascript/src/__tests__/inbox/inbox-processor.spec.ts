@@ -188,7 +188,7 @@ describe('InboxProcessor', () => {
           },
           createContext('failed-event')
         );
-      } catch (_error) {
+      } catch {
         // Expected
       }
 
@@ -290,7 +290,7 @@ describe('InboxProcessor', () => {
             },
             createContext(`failed-${i}`)
           );
-        } catch (_error) {
+        } catch {
           // Expected
         }
       }
@@ -318,7 +318,7 @@ describe('InboxProcessor', () => {
             },
             createContext(`failed-${i}`)
           );
-        } catch (_error) {
+        } catch {
           // Expected
         }
       }

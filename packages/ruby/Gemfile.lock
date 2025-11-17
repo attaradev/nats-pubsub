@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    nats_pubsub (0.1.0)
+    nats_pubsub (1.0.0)
       activerecord (>= 6.0, < 9)
       activesupport (>= 6.0, < 9)
       nats-pure (~> 2.5)

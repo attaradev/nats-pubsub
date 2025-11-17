@@ -1,5 +1,3 @@
-import { Logging } from './constants';
-
 /**
  * Log level type
  */
@@ -94,7 +92,7 @@ export class StructuredLogger {
 
     try {
       console.log(JSON.stringify(logEntry));
-    } catch (error) {
+    } catch {
       // Fallback to plain text if JSON fails
       console.log(`[${severity}] ${message}`);
     }

@@ -34,7 +34,6 @@ export function subscriber<
   TMessage extends Record<string, unknown> = Record<string, unknown>,
   TMetadata extends EventMetadata = EventMetadata,
 >(subjects: string | string[], options?: SubscriberOptions) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function <
     T extends new (...args: any[]) => {
       handle(message: TMessage, metadata: TMetadata): Promise<void>;
@@ -93,7 +92,6 @@ export function topicSubscriber<
   TMessage extends Record<string, unknown> = Record<string, unknown>,
   TMetadata extends TopicMetadata = TopicMetadata,
 >(topics: string | string[], options?: SubscriberOptions) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function <
     T extends new (...args: any[]) => {
       handle(message: TMessage, metadata: TMetadata): Promise<void>;
@@ -143,7 +141,6 @@ export function topicSubscriberWildcard<
   TMessage extends Record<string, unknown> = Record<string, unknown>,
   TMetadata extends TopicMetadata = TopicMetadata,
 >(topic: string, options?: SubscriberOptions) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function <
     T extends new (...args: any[]) => {
       handle(message: TMessage, metadata: TMetadata): Promise<void>;

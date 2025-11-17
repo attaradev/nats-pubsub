@@ -1,6 +1,5 @@
 import connection from './connection';
 import config from './config';
-import { NatsConnection } from 'nats';
 
 export interface HealthCheckResult {
   /** Overall health status */
