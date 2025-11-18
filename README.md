@@ -91,6 +91,14 @@
 - **[Custom Repositories](./docs/advanced/custom-repositories.md)** - Implement custom storage
 - **[Security](./docs/advanced/security.md)** - Security best practices
 
+### Architecture Plans
+
+- **[v2 Architecture Plan](./v2-plan/)** - Multi-stream, multi-application architecture proposal
+  - Multi-stream consumption pattern
+  - Independent subscriber acknowledgment
+  - Stream ownership and isolation
+  - Many-to-many messaging patterns
+
 ### Troubleshooting
 
 - **[Common Issues](./docs/troubleshooting/common-issues.md)** - Solutions to frequent problems
