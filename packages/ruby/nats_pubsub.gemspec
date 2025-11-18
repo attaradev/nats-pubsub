@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   DESC
 
   spec.license  = 'MIT'
-  spec.homepage = 'https://github.com/attaradev/nats_pubsub'
+  spec.homepage = 'https://github.com/attaradev/nats-pubsub'
 
   # Runtime environment
   spec.required_ruby_version     = '>= 3.2.0'
@@ -25,12 +25,12 @@ Gem::Specification.new do |spec|
 
   # Rich metadata
   spec.metadata = {
-    'homepage_uri' => 'https://github.com/attaradev/nats_pubsub',
-    'source_code_uri' => 'https://github.com/attaradev/nats_pubsub',
-    'changelog_uri' => 'https://github.com/attaradev/nats_pubsub/blob/main/CHANGELOG.md',
-    'documentation_uri' => 'https://github.com/attaradev/nats_pubsub#readme',
-    'bug_tracker_uri' => 'https://github.com/attaradev/nats_pubsub/issues',
-    'github_repo' => 'ssh://github.com/attaradev/nats_pubsub',
+    'homepage_uri' => 'https://github.com/attaradev/nats-pubsub',
+    'source_code_uri' => 'https://github.com/attaradev/nats-pubsub',
+    'changelog_uri' => 'https://github.com/attaradev/nats-pubsub/blob/main/packages/ruby/CHANGELOG.md',
+    'documentation_uri' => 'https://github.com/attaradev/nats-pubsub#readme',
+    'bug_tracker_uri' => 'https://github.com/attaradev/nats-pubsub/issues',
+    'github_repo' => 'ssh://github.com/attaradev/nats-pubsub',
     'rubygems_mfa_required' => 'true'
   }
 

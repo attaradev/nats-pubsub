@@ -277,17 +277,16 @@ jobs:
             echo "Tag ${TAG_NAME} already exists, skipping tag creation"
           fi
 
-      - name: Build and Publish Gem to RubyGems
+      - name: Build Gem
         working-directory: packages/ruby
         run: |
-          # Build the gem
           gem build nats_pubsub.gemspec
+          mv nats_pubsub-*.gem ../../
 
-          # Configure RubyGems credentials (will use OIDC if configured)
-          mkdir -p ~/.gem
-
-          # Push to RubyGems
-          gem push nats_pubsub-${{ needs.detect-ruby-changes.outputs.version }}.gem
+      - name: Publish to RubyGems with Trusted Publishing
+        uses: rubygems/release-gem@v1
+        with:
+          setup-trusted-publisher: true
 
       - name: Create GitHub Release
         working-directory: .
