@@ -8,8 +8,8 @@ const config: Config = {
   favicon: 'img/favicon.svg',
 
   // GitHub Pages configuration
-  url: 'https://attaradev.github.io',
-  baseUrl: '/nats-pubsub/',
+  url: 'https://natspubsub.attaradev.dev',
+  baseUrl: '/',
 
   organizationName: 'attaradev',
   projectName: 'nats-pubsub',
