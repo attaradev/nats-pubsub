@@ -1,4 +1,4 @@
-import { Subscriber, EventMetadata, MessageContext } from '../types';
+import { Subscriber, EventMetadata } from '../types';
 import { Consumer } from '../subscribers/consumer';
 import { Publisher } from '../publisher/publisher';
 import config from '../core/config';
@@ -80,10 +80,8 @@ export class TestHarness {
   private consumer: Consumer;
   private publisher: Publisher;
   private errorSimulations: Map<string, Error> = new Map();
-  private _inlineMode: boolean;
 
   private constructor(options: TestHarnessOptions = {}) {
-    this._inlineMode = options.inlineMode ?? true;
     this.consumer = new Consumer();
     this.publisher = new Publisher();
 
@@ -124,39 +122,22 @@ export class TestHarness {
    */
   registerSubscriber(subscriber: Subscriber): void {
     // Wrap subscriber to track calls
-    const originalCall = subscriber.call?.bind(subscriber);
-    const originalHandle = subscriber.handle?.bind(subscriber);
+    const originalHandle = subscriber.handle.bind(subscriber);
     const subscriberName = subscriber.constructor.name;
 
-    if (originalCall) {
-      subscriber.call = async (event: Record<string, unknown>, metadata: EventMetadata) => {
-        this.trackSubscriberCall(subscriberName);
+    subscriber.handle = async (event: Record<string, unknown>, metadata: EventMetadata) => {
+      this.trackSubscriberCall(subscriberName);
 
-        // Check for simulated error
-        const error = this.errorSimulations.get(subscriberName);
-        if (error) {
-          throw error;
-        }
+      // Check for simulated error
+      const error = this.errorSimulations.get(subscriberName);
+      if (error) {
+        throw error;
+      }
 
-        return originalCall(event, metadata);
-      };
-    }
+      return originalHandle(event, metadata);
+    };
 
-    if (originalHandle) {
-      subscriber.handle = async (event: Record<string, unknown>, context: MessageContext) => {
-        this.trackSubscriberCall(subscriberName);
-
-        // Check for simulated error
-        const error = this.errorSimulations.get(subscriberName);
-        if (error) {
-          throw error;
-        }
-
-        return originalHandle(event, context);
-      };
-    }
-
-    this.consumer.subscribeTo(subscriber);
+    this.consumer.registerSubscriber(subscriber);
   }
 
   /**

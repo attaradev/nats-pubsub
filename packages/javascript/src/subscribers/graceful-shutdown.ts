@@ -107,8 +107,8 @@ export class GracefulShutdown {
    */
   private async stopAcceptingMessages(): Promise<void> {
     this.logger?.info('Stopping message acceptance');
-    if (typeof this.consumer.pause === 'function') {
-      await this.consumer.pause();
+    if (typeof (this.consumer as any).pause === 'function') {
+      await (this.consumer as any).pause();
     }
   }
 
@@ -120,7 +120,9 @@ export class GracefulShutdown {
 
     while (true) {
       const inFlight =
-        typeof this.consumer.getInFlightCount === 'function' ? this.consumer.getInFlightCount() : 0;
+        typeof (this.consumer as any).getInFlightCount === 'function'
+          ? (this.consumer as any).getInFlightCount()
+          : 0;
 
       if (inFlight === 0) {
         this.logger?.info('All messages processed');
@@ -149,8 +151,8 @@ export class GracefulShutdown {
    */
   private async forceTerminate(): Promise<void> {
     this.logger?.warn('Force terminating remaining messages');
-    if (typeof this.consumer.forceStop === 'function') {
-      await this.consumer.forceStop();
+    if (typeof (this.consumer as any).forceStop === 'function') {
+      await (this.consumer as any).forceStop();
     }
   }
 
@@ -159,8 +161,8 @@ export class GracefulShutdown {
    */
   private async closeConnections(): Promise<void> {
     this.logger?.info('Closing connections');
-    if (typeof this.consumer.close === 'function') {
-      await this.consumer.close();
+    if (typeof (this.consumer as any).close === 'function') {
+      await (this.consumer as any).close();
     }
   }
 

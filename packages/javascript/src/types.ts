@@ -125,14 +125,26 @@ export enum ErrorAction {
 export interface ErrorContext {
   /** The error that occurred */
   error: Error;
+  /** Error class name */
+  errorClass: string;
+  /** Error message */
+  errorMessage: string;
   /** The message that failed */
   message: Record<string, unknown>;
-  /** Message context */
-  context: MessageContext;
+  /** Message context (deprecated, use metadata) */
+  context?: MessageContext;
+  /** Message metadata */
+  metadata: MessageContext;
   /** Current attempt number (1-based) */
   attemptNumber: number;
   /** Maximum delivery attempts configured */
   maxAttempts: number;
+  /** Whether this is the last attempt */
+  lastAttempt: boolean;
+  /** Remaining attempts */
+  remainingAttempts: number;
+  /** Whether the error is retryable */
+  retryable: boolean;
 }
 
 /**

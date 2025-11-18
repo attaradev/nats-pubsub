@@ -76,9 +76,9 @@
     "directory": "packages/javascript"
   },
   "bugs": {
-    "url": "https://github.com/attaradev/nats_pubsub/issues"
+    "url": "https://github.com/attaradev/nats-pubsub/issues"
   },
-  "homepage": "https://github.com/attaradev/nats_pubsub#readme",
+  "homepage": "https://github.com/attaradev/nats-pubsub#readme",
   "funding": {
     "type": "github",
     "url": "https://github.com/sponsors/attaradev"

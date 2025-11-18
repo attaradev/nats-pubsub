@@ -277,16 +277,14 @@ jobs:
             echo "Tag ${TAG_NAME} already exists, skipping tag creation"
           fi
 
-      - name: Build Gem
+      - name: Setup RubyGems credentials with OIDC
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Build and Publish Gem
         working-directory: packages/ruby
         run: |
           gem build nats_pubsub.gemspec
-          mv nats_pubsub-*.gem ../../
-
-      - name: Publish to RubyGems with Trusted Publishing
-        uses: rubygems/release-gem@v1
-        with:
-          setup-trusted-publisher: true
+          gem push nats_pubsub-*.gem
 
       - name: Create GitHub Release
         working-directory: .
@@ -311,4 +309,4 @@ jobs:
           \`\`\`
 
           See the [full changelog](https://github.com/${{ github.repository }}/blob/main/packages/ruby/CHANGELOG.md) for detailed changes." \
-            packages/ruby/*.gem
+            packages/ruby/nats_pubsub-*.gem
