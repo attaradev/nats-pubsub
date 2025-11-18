@@ -42,7 +42,7 @@ export class SchemaValidator<T extends z.ZodType> {
       if (error instanceof z.ZodError) {
         return {
           success: false,
-          errors: error.errors.map((err) => ({
+          errors: error.issues.map((err: z.ZodIssue) => ({
             path: err.path.join('.'),
             message: err.message,
             code: err.code,
@@ -92,7 +92,8 @@ export class SchemaValidator<T extends z.ZodType> {
    */
   validatePartial(data: unknown): ValidationResult<Partial<z.infer<T>>> {
     try {
-      const partialSchema = this.schema.partial() as z.ZodType<Partial<z.infer<T>>>;
+      // Cast to any to access partial() method - only works with ZodObject types
+      const partialSchema = (this.schema as any).partial() as z.ZodType<Partial<z.infer<T>>>;
       const parsed = partialSchema.parse(data);
       return {
         success: true,
@@ -102,7 +103,7 @@ export class SchemaValidator<T extends z.ZodType> {
       if (error instanceof z.ZodError) {
         return {
           success: false,
-          errors: error.errors.map((err) => ({
+          errors: error.issues.map((err: z.ZodIssue) => ({
             path: err.path.join('.'),
             message: err.message,
             code: err.code,

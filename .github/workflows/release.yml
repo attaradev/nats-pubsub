@@ -164,8 +164,14 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "javascript-v${{ needs.detect-javascript-changes.outputs.version }}" -m "Release javascript-v${{ needs.detect-javascript-changes.outputs.version }}"
-          git push origin "javascript-v${{ needs.detect-javascript-changes.outputs.version }}"
+          TAG_NAME="javascript-v${{ needs.detect-javascript-changes.outputs.version }}"
+          if ! git tag | grep -q "^${TAG_NAME}$"; then
+            git tag -a "${TAG_NAME}" -m "Release ${TAG_NAME}"
+            git push origin "${TAG_NAME}"
+            echo "Created and pushed tag ${TAG_NAME}"
+          else
+            echo "Tag ${TAG_NAME} already exists, skipping tag creation"
+          fi
 
       - name: Create GitHub Release
         run: |
@@ -262,8 +268,14 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "ruby-v${{ needs.detect-ruby-changes.outputs.version }}" -m "Release ruby-v${{ needs.detect-ruby-changes.outputs.version }}"
-          git push origin "ruby-v${{ needs.detect-ruby-changes.outputs.version }}"
+          TAG_NAME="ruby-v${{ needs.detect-ruby-changes.outputs.version }}"
+          if ! git tag | grep -q "^${TAG_NAME}$"; then
+            git tag -a "${TAG_NAME}" -m "Release ${TAG_NAME}"
+            git push origin "${TAG_NAME}"
+            echo "Created and pushed tag ${TAG_NAME}"
+          else
+            echo "Tag ${TAG_NAME} already exists, skipping tag creation"
+          fi
 
       - name: Publish to RubyGems with OIDC
         uses: rubygems/release-gem@v1
