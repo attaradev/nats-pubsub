@@ -1,5 +1,43 @@
 import { NatsConnection, JetStreamClient } from 'nats';
 
+/**
+ * NATS authentication configuration
+ *
+ * Supports multiple authentication methods:
+ * - Token: Simple bearer token
+ * - User/Password: Username and password
+ * - NKey: Cryptographic key-based authentication
+ * - Credentials: Path to a NATS credentials file (JWT + NKey)
+ */
+export interface NatsAuthConfig {
+  /** Authentication method */
+  type: 'token' | 'user-password' | 'nkey' | 'credentials';
+  /** Bearer token (for type: 'token') */
+  token?: string;
+  /** Username (for type: 'user-password') */
+  user?: string;
+  /** Password (for type: 'user-password') */
+  pass?: string;
+  /** NKey seed (for type: 'nkey') */
+  nkey?: string;
+  /** Path to NATS credentials file (for type: 'credentials') */
+  credentialsPath?: string;
+}
+
+/**
+ * TLS configuration for NATS connections
+ */
+export interface NatsTlsConfig {
+  /** Path to CA certificate file for server verification */
+  caFile?: string;
+  /** Path to client certificate file (for mTLS) */
+  certFile?: string;
+  /** Path to client private key file (for mTLS) */
+  keyFile?: string;
+  /** Whether to reject unauthorized servers (default: true) */
+  rejectUnauthorized?: boolean;
+}
+
 export interface NatsPubsubConfig {
   natsUrls: string | string[];
   env: string;
@@ -13,6 +51,10 @@ export interface NatsPubsubConfig {
   useDlq?: boolean;
   streamName?: string;
   dlqSubject?: string;
+  // Authentication
+  auth?: NatsAuthConfig;
+  // TLS
+  tls?: NatsTlsConfig;
   // Optional metrics hook for DLQ counting
   metrics?: {
     recordDlqMessage(subject: string, reason: string): void;

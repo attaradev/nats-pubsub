@@ -4,6 +4,21 @@ import { Subject } from '../core/subject';
 import { toNanos } from '../core/duration';
 
 /**
+ * Check if an error is a JetStream "not found" error (HTTP 404).
+ *
+ * The NATS client throws NatsError with:
+ * - code: '404' (string) on the NatsError itself
+ * - api_error.code: 404 (number) for the JetStream API error detail
+ *
+ * We check both to be resilient across NATS client versions.
+ */
+function isStreamNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string | number; api_error?: { code?: number } };
+  return err.code === '404' || err.code === 404 || err.api_error?.code === 404;
+}
+
+/**
  * TopologyManager handles JetStream stream and DLQ topology setup
  *
  * Responsibilities:
@@ -33,14 +48,11 @@ export class TopologyManager {
       await jsm.streams.info(streamName);
       logger.debug('Stream already exists', { stream: streamName });
     } catch (error: unknown) {
-      const err = error as { code?: string };
-      if (err.code === '404') {
+      if (isStreamNotFoundError(error)) {
         logger.info('Creating stream...', { stream: streamName });
 
-        const subjects = [Subject.allEvents(cfg.env)];
-        if (cfg.useDlq) {
-          subjects.push(config.dlqSubject);
-        }
+        // Include both event-based and topic-based subject patterns
+        const subjects = [Subject.allEvents(cfg.env), `${cfg.env}.${cfg.appName}.>`];
 
         await jsm.streams.add({
           name: streamName,
@@ -76,8 +88,7 @@ export class TopologyManager {
       await jsm.streams.info(dlqStream);
       logger.debug('DLQ stream already exists', { stream: dlqStream });
     } catch (error: unknown) {
-      const err = error as { code?: string };
-      if (err.code === '404') {
+      if (isStreamNotFoundError(error)) {
         logger.info('Creating DLQ stream...', {
           stream: dlqStream,
           subject: config.dlqSubject,

@@ -10,7 +10,10 @@ module NatsPubsub
                   :use_outbox, :use_inbox, :inbox_model, :outbox_model,
                   :use_dlq, :dlq_max_attempts, :dlq_stream_suffix,
                   :logger, :concurrency,
-                  :connection_pool_size, :connection_pool_timeout
+                  :connection_pool_size, :connection_pool_timeout,
+                  :auth_token, :auth_user, :auth_password,
+                  :nkeys_seed, :user_credentials,
+                  :tls_ca_file, :tls_cert_file, :tls_key_file
     attr_reader :preset
 
     def initialize(preset: nil)
@@ -39,6 +42,18 @@ module NatsPubsub
       # Connection pool settings
       @connection_pool_size = ENV.fetch('NATS_POOL_SIZE', 5).to_i
       @connection_pool_timeout = ENV.fetch('NATS_POOL_TIMEOUT', 5).to_i
+
+      # Authentication
+      @auth_token = ENV.fetch('NATS_TOKEN', nil)
+      @auth_user = ENV.fetch('NATS_USER', nil)
+      @auth_password = ENV.fetch('NATS_PASSWORD', nil)
+      @nkeys_seed = ENV.fetch('NATS_NKEYS_SEED', nil)
+      @user_credentials = ENV.fetch('NATS_CREDENTIALS', nil)
+
+      # TLS
+      @tls_ca_file = ENV.fetch('NATS_TLS_CA_FILE', nil)
+      @tls_cert_file = ENV.fetch('NATS_TLS_CERT_FILE', nil)
+      @tls_key_file = ENV.fetch('NATS_TLS_KEY_FILE', nil)
 
       # Middleware chain (lazy loaded to avoid circular dependency)
       @server_middleware = nil
@@ -112,6 +127,8 @@ module NatsPubsub
       validate_numeric_ranges!
       validate_urls!
       validate_concurrency_bounds!
+      validate_auth!
+      validate_tls!
     end
 
     private
@@ -145,7 +162,23 @@ module NatsPubsub
       return unless nats_urls
 
       Array(nats_urls).each do |url|
-        raise ConfigurationError, "Invalid NATS URL: #{url}" unless url =~ %r{\Anats://}i
+        raise ConfigurationError, "Invalid NATS URL: #{url}" unless url =~ %r{\A(nats|tls)://}i
+      end
+    end
+
+    def validate_auth!
+      if auth_user && !auth_password
+        raise ConfigurationError, 'auth_password is required when auth_user is set'
+      end
+
+      if !auth_user && auth_password
+        raise ConfigurationError, 'auth_user is required when auth_password is set'
+      end
+    end
+
+    def validate_tls!
+      if (tls_cert_file && !tls_key_file) || (!tls_cert_file && tls_key_file)
+        raise ConfigurationError, 'Both tls_cert_file and tls_key_file must be provided for mutual TLS'
       end
     end
   end

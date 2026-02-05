@@ -3,9 +3,9 @@ services:
     image: nats:2.10-alpine
     container_name: nats-pubsub-nats
     ports:
-      - "4222:4222"  # Client connections
-      - "8222:8222"  # HTTP monitoring
-      - "6222:6222"  # Cluster routes
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+      - "6222:6222" # Cluster routes
     command:
       - "--jetstream"
       - "--http_port=8222"
@@ -26,19 +26,19 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   postgres:
     image: postgres:17-alpine
     container_name: nats-pubsub-postgres
     environment:
-      POSTGRES_DB: nats_pubsub_dev
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-nats_pubsub_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
@@ -56,10 +56,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
 
   nats-cli:
@@ -85,7 +85,7 @@ services:
       - "-l"
       - "0.0.0.0:7777"
     ports:
-      - "7777:7777"  # Metrics endpoint for Prometheus
+      - "7777:7777" # Metrics endpoint for Prometheus
     depends_on:
       nats:
         condition: service_healthy
@@ -95,10 +95,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 64M
 
   # Optional: Prometheus for metrics collection
@@ -124,10 +124,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
 
   # Optional: Grafana for dashboards
@@ -135,8 +135,8 @@ services:
     image: grafana/grafana:11.4
     container_name: nats-pubsub-grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3000:3000"
@@ -152,10 +152,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 128M
 
 volumes:

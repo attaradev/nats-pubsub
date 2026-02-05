@@ -72,7 +72,7 @@ export class Consumer {
     const subjects = this.registry.getAllSubjects();
 
     for (const subject of subjects) {
-      this.subscribe(subject);
+      await this.subscribe(subject);
     }
 
     logger.info('Consumer started', { subjects });

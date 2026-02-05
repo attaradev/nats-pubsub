@@ -49,6 +49,12 @@ interface NatsPubsubConfig {
   dlqSubject?: string;
   dlqMaxAttempts?: number;
 
+  // Authentication
+  auth?: NatsAuthConfig;
+
+  // TLS
+  tls?: NatsTlsConfig;
+
   // Monitoring
   metrics?: {
     recordDlqMessage(subject: string, reason: string): void;
@@ -56,6 +62,22 @@ interface NatsPubsubConfig {
 
   // Logging
   logger?: Logger;
+}
+
+interface NatsAuthConfig {
+  type: "token" | "user-password" | "nkey" | "credentials";
+  token?: string; // For type: 'token'
+  user?: string; // For type: 'user-password'
+  pass?: string; // For type: 'user-password'
+  nkey?: string; // For type: 'nkey'
+  credentialsPath?: string; // For type: 'credentials'
+}
+
+interface NatsTlsConfig {
+  caFile?: string; // Path to CA certificate
+  certFile?: string; // Path to client certificate
+  keyFile?: string; // Path to client key
+  rejectUnauthorized?: boolean; // Verify server cert (default: true)
 }
 ```
 
@@ -496,7 +518,12 @@ class Config
                 :use_outbox, :use_inbox, :inbox_model, :outbox_model,
                 :use_dlq, :dlq_max_attempts, :dlq_stream_suffix,
                 :logger, :concurrency,
-                :connection_pool_size, :connection_pool_timeout
+                :connection_pool_size, :connection_pool_timeout,
+                # Authentication
+                :auth_token, :auth_user, :auth_password,
+                :nkeys_seed, :user_credentials,
+                # TLS
+                :tls_ca_file, :tls_cert_file, :tls_key_file
 end
 ```
 
@@ -1048,20 +1075,73 @@ end
 
 ## Security Settings
 
+### Authentication
+
+NatsPubsub has built-in support for NATS authentication methods.
+
+#### JavaScript/TypeScript
+
+```typescript
+NatsPubsub.configure({
+  natsUrls: "nats://nats.example.com:4222",
+
+  // Token authentication
+  auth: { type: "token", token: process.env.NATS_TOKEN },
+
+  // User/password authentication
+  auth: {
+    type: "user-password",
+    user: process.env.NATS_USER,
+    pass: process.env.NATS_PASSWORD,
+  },
+
+  // NKey authentication
+  auth: { type: "nkey", nkey: process.env.NATS_NKEY_SEED },
+
+  // Credentials file (JWT + NKey)
+  auth: { type: "credentials", credentialsPath: process.env.NATS_CREDENTIALS },
+});
+```
+
+#### Ruby
+
+```ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'nats://nats.example.com:4222'
+
+  # Token authentication
+  config.auth_token = ENV['NATS_TOKEN']
+
+  # User/password authentication
+  config.auth_user = ENV['NATS_USER']
+  config.auth_password = ENV['NATS_PASSWORD']
+
+  # NKey seed file
+  config.nkeys_seed = ENV['NATS_NKEYS_SEED']
+
+  # Credentials file (JWT + NKey)
+  config.user_credentials = ENV['NATS_CREDENTIALS']
+end
+```
+
 ### TLS Configuration
 
 #### JavaScript/TypeScript
 
 ```typescript
-import { connect } from "nats";
+NatsPubsub.configure({
+  natsUrls: "tls://nats.example.com:4222",
 
-// Configure NATS with TLS
-const nc = await connect({
-  servers: "tls://nats.example.com:4222",
+  // TLS with CA certificate (server verification)
   tls: {
-    caFile: "./ca.pem",
-    certFile: "./cert.pem",
-    keyFile: "./key.pem",
+    caFile: "/path/to/ca.crt",
+  },
+
+  // Mutual TLS (mTLS) with client certificate
+  tls: {
+    caFile: "/path/to/ca.crt",
+    certFile: "/path/to/client.crt",
+    keyFile: "/path/to/client.key",
   },
 });
 ```
@@ -1069,37 +1149,16 @@ const nc = await connect({
 #### Ruby
 
 ```ruby
-# Configure NATS with TLS
 NatsPubsub.configure do |config|
   config.nats_urls = 'tls://nats.example.com:4222'
-  # TLS configuration handled by NATS client
+
+  # TLS with CA certificate
+  config.tls_ca_file = '/path/to/ca.crt'
+
+  # Mutual TLS (mTLS) with client certificate
+  config.tls_cert_file = '/path/to/client.crt'
+  config.tls_key_file = '/path/to/client.key'
 end
-```
-
-### Authentication
-
-#### Token Authentication
-
-```typescript
-// JavaScript/TypeScript
-natsUrls: "nats://token@nats.example.com:4222";
-```
-
-```ruby
-# Ruby
-config.nats_urls = 'nats://token@nats.example.com:4222'
-```
-
-#### Username/Password
-
-```typescript
-// JavaScript/TypeScript
-natsUrls: "nats://user:password@nats.example.com:4222";
-```
-
-```ruby
-# Ruby
-config.nats_urls = 'nats://user:password@nats.example.com:4222'
 ```
 
 ---
@@ -1118,6 +1177,14 @@ config.nats_urls = 'nats://user:password@nats.example.com:4222'
 | `RAILS_ENV`              | Rails environment (Ruby only)  | `development`           |
 | `NATS_POOL_SIZE`         | Connection pool size (Ruby)    | `5`                     |
 | `NATS_POOL_TIMEOUT`      | Pool timeout in seconds (Ruby) | `5`                     |
+| `NATS_TOKEN`             | Auth token (Ruby)              | -                       |
+| `NATS_USER`              | Auth username (Ruby)           | -                       |
+| `NATS_PASSWORD`          | Auth password (Ruby)           | -                       |
+| `NATS_NKEYS_SEED`        | NKey seed path (Ruby)          | -                       |
+| `NATS_CREDENTIALS`       | Credentials file path (Ruby)   | -                       |
+| `NATS_TLS_CA_FILE`       | TLS CA certificate (Ruby)      | -                       |
+| `NATS_TLS_CERT_FILE`     | TLS client certificate (Ruby)  | -                       |
+| `NATS_TLS_KEY_FILE`      | TLS client key (Ruby)          | -                       |
 
 ### Example .env File
 

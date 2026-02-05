@@ -75,16 +75,24 @@ graph TB
 
 ## Authentication
 
+NatsPubsub has built-in support for all NATS authentication methods. Configure authentication via the `auth` config option (JavaScript) or individual config attributes (Ruby) — no raw NATS client code needed.
+
 ### Token-Based Authentication
 
 ```typescript
-// NATS Token Authentication
-import { connect } from "nats";
-
-const nc = await connect({
-  servers: "nats://nats-server:4222",
-  token: process.env.NATS_TOKEN,
+// JavaScript/TypeScript
+NatsPubsub.configure({
+  natsUrls: "nats://nats-server:4222",
+  auth: { type: "token", token: process.env.NATS_TOKEN },
 });
+```
+
+```ruby
+# Ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'nats://nats-server:4222'
+  config.auth_token = ENV['NATS_TOKEN']
+end
 ```
 
 **Best Practices:**
@@ -97,11 +105,24 @@ const nc = await connect({
 ### Username/Password Authentication
 
 ```typescript
-const nc = await connect({
-  servers: "nats://nats-server:4222",
-  user: process.env.NATS_USER,
-  pass: process.env.NATS_PASSWORD,
+// JavaScript/TypeScript
+NatsPubsub.configure({
+  natsUrls: "nats://nats-server:4222",
+  auth: {
+    type: "user-password",
+    user: process.env.NATS_USER,
+    pass: process.env.NATS_PASSWORD,
+  },
 });
+```
+
+```ruby
+# Ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'nats://nats-server:4222'
+  config.auth_user = ENV['NATS_USER']
+  config.auth_password = ENV['NATS_PASSWORD']
+end
 ```
 
 **Best Practices:**
@@ -116,23 +137,19 @@ const nc = await connect({
 NKey provides public/private key authentication:
 
 ```typescript
-import { createUser } from "nkeys.js";
-
-// Generate NKey pair (do this once, securely)
-const user = createUser();
-const seed = user.getSeed(); // Store securely
-const publicKey = user.getPublicKey();
-
-// Use NKey for authentication
-const nc = await connect({
-  servers: "nats://nats-server:4222",
-  nkey: publicKey,
-  sigCB: (nonce) => {
-    const user = createUser();
-    user.fromSeed(seed);
-    return user.sign(nonce);
-  },
+// JavaScript/TypeScript
+NatsPubsub.configure({
+  natsUrls: "nats://nats-server:4222",
+  auth: { type: "nkey", nkey: process.env.NATS_NKEY_SEED },
 });
+```
+
+```ruby
+# Ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'nats://nats-server:4222'
+  config.nkeys_seed = ENV['NATS_NKEYS_SEED']
+end
 ```
 
 **Advantages:**
@@ -142,18 +159,24 @@ const nc = await connect({
 - Key rotation without server restart
 - Audit trail of key usage
 
-### JWT Authentication (Recommended)
+### Credentials File Authentication (Recommended)
 
-JWT provides the strongest authentication with decentralized authorization:
+Credentials files combine JWT and NKey for the strongest authentication with decentralized authorization:
 
 ```typescript
-const nc = await connect({
-  servers: "nats://nats-server:4222",
-  authenticator: jwtAuthenticator(
-    process.env.NATS_JWT,
-    new TextEncoder().encode(process.env.NATS_NKEY_SEED),
-  ),
+// JavaScript/TypeScript
+NatsPubsub.configure({
+  natsUrls: "nats://nats-server:4222",
+  auth: { type: "credentials", credentialsPath: process.env.NATS_CREDENTIALS },
 });
+```
+
+```ruby
+# Ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'nats://nats-server:4222'
+  config.user_credentials = ENV['NATS_CREDENTIALS']
+end
 ```
 
 **NATS JWT Structure:**
@@ -588,28 +611,28 @@ class SecureSubscriber extends Subscriber {
 
 ### TLS/SSL Configuration
 
+NatsPubsub has built-in TLS support. Provide certificate paths in config and the library handles the rest.
+
 ```typescript
-import { readFileSync } from "fs";
-
-const tlsConfig = {
-  // Server CA certificate
-  ca: readFileSync("/path/to/ca.crt"),
-
-  // Client certificate (mutual TLS)
-  cert: readFileSync("/path/to/client.crt"),
-  key: readFileSync("/path/to/client.key"),
-
-  // Verify server certificate
-  rejectUnauthorized: true,
-
-  // Minimum TLS version
-  minVersion: "TLSv1.3" as const,
-};
-
-const nc = await connect({
-  servers: "tls://nats-server:4222",
-  tls: tlsConfig,
+// JavaScript/TypeScript
+NatsPubsub.configure({
+  natsUrls: "tls://nats-server:4222",
+  tls: {
+    caFile: "/path/to/ca.crt",
+    certFile: "/path/to/client.crt", // For mutual TLS
+    keyFile: "/path/to/client.key", // For mutual TLS
+  },
 });
+```
+
+```ruby
+# Ruby
+NatsPubsub.configure do |config|
+  config.nats_urls = 'tls://nats-server:4222'
+  config.tls_ca_file = '/path/to/ca.crt'
+  config.tls_cert_file = '/path/to/client.crt' # For mutual TLS
+  config.tls_key_file = '/path/to/client.key'  # For mutual TLS
+end
 ```
 
 **Best Practices:**

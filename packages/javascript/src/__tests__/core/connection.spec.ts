@@ -101,6 +101,7 @@ describe('Connection', () => {
 
       expect(mockLogger.info).toHaveBeenCalledWith('Connecting to NATS...', {
         urls: 'nats://localhost:4222',
+        attempt: 1,
       });
       expect(mockLogger.info).toHaveBeenCalledWith('Connected to NATS successfully');
       expect(mockLogger.info).toHaveBeenCalledWith('JetStream client initialized');
@@ -160,11 +161,25 @@ describe('Connection', () => {
     });
 
     it('should log and throw error on connection failure', async () => {
+      jest.useFakeTimers();
       const error = new Error('Connection failed');
       (connect as jest.Mock).mockRejectedValue(error);
 
-      await expect(Connection.connect()).rejects.toThrow('Connection failed');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to connect to NATS', { error });
+      const connectPromise = Connection.connect();
+
+      // Advance through all retry delays (1s, 2s, 4s, 8s)
+      for (let i = 0; i < 4; i++) {
+        await Promise.resolve(); // let the catch handler run
+        jest.advanceTimersByTime(10_000);
+        await Promise.resolve();
+      }
+
+      await expect(connectPromise).rejects.toThrow('Connection failed');
+      expect(mockLogger.error).toHaveBeenCalledWith('Failed to connect to NATS after retries', {
+        error,
+      });
+
+      jest.useRealTimers();
     });
 
     it('should setup event handlers after connection', async () => {

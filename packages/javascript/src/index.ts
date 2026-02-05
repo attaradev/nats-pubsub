@@ -46,7 +46,7 @@ export {
 } from './core/validation';
 
 // Publisher
-export { Publisher, default as publisher } from './publisher/publisher';
+export { Publisher, resetPublisher, default as publisher } from './publisher/publisher';
 export { FluentBatchPublisher, FluentBatchPublishResult } from './publisher/fluent-batch';
 export { BatchPublisher, BatchPublishResult } from './publisher/batch-publisher';
 
@@ -92,6 +92,8 @@ export type {
   RetryStrategy,
   CircuitBreakerConfig,
   DlqConfig,
+  NatsAuthConfig,
+  NatsTlsConfig,
 } from './types';
 
 // Testing utilities

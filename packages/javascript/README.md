@@ -88,6 +88,7 @@ That's it! You're now publishing and consuming messages with NATS JetStream.
 - 🚀 **TypeScript First** - Full type safety, generics, and IntelliSense support
 - 📦 **Batch Publishing** - Efficient multi-message publishing with fluent API
 - 🧱 **Auto-Topology Management** - Automatic JetStream stream creation, prevents overlap errors
+- 🔐 **Authentication & TLS** - Built-in support for token, user/password, NKey, credentials, and TLS/mTLS
 - 📊 **Structured Logging** - Configurable logging with sensible defaults
 - ❤️ **Health Checks** - Built-in health check endpoints for Kubernetes/Docker
 
@@ -143,6 +144,19 @@ NatsPubsub.configure({
 
   // Features
   useDlq: true,
+
+  // Authentication (pick one)
+  auth: { type: 'token', token: process.env.NATS_TOKEN },
+  // auth: { type: 'user-password', user: process.env.NATS_USER, pass: process.env.NATS_PASSWORD },
+  // auth: { type: 'nkey', nkey: process.env.NATS_NKEY_SEED },
+  // auth: { type: 'credentials', credentialsPath: '/path/to/user.creds' },
+
+  // TLS (for tls:// URLs)
+  tls: {
+    caFile: '/path/to/ca.crt',
+    certFile: '/path/to/client.crt', // optional, for mTLS
+    keyFile: '/path/to/client.key', // optional, for mTLS
+  },
 
   // Custom logger (optional)
   logger: customLogger,

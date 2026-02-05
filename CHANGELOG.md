@@ -83,6 +83,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Security & Authentication
+
+- **NATS Authentication support** (JavaScript & Ruby) — token, user/password, NKey, and credentials file authentication methods via `auth` config option (JS) and `auth_token`, `auth_user`, `auth_password`, `nkeys_seed`, `user_credentials` config attributes (Ruby)
+- **NATS TLS/mTLS support** (JavaScript & Ruby) — CA certificate, client certificate, and client key configuration via `tls` config option (JS) and `tls_ca_file`, `tls_cert_file`, `tls_key_file` config attributes (Ruby)
+- **Payload size validation** — Publisher validates message size against NATS max payload (1MB) before publishing, providing clear errors for oversized messages
+- **TLS URL scheme support** — `tls://` URLs are now accepted alongside `nats://` in URL validation
+
+#### Reliability & Robustness
+
+- **Connection retry with exponential backoff** (JavaScript) — Initial connection retries up to 5 times with exponential backoff (1s, 2s, 4s, 8s) before failing, preventing transient startup failures
+- **Unlimited reconnect attempts** (Ruby) — Changed `max_reconnect_attempts` from 10 to -1 (unlimited) for production resilience
+- **Topic-based message routing** — Stream topology now includes `{env}.{appName}.>` subject pattern alongside event-based pattern, fixing silent message loss for topic-based messages
+
+### Fixed
+
+- **GracefulShutdown calling nonexistent Consumer methods** — Removed `as any` casts to phantom `pause()`, `getInFlightCount()`, `forceStop()`, and `close()` methods; now correctly uses `consumer.stop()` with timeout, leveraging NATS's built-in `drain()` for graceful message completion
+- **Publisher singleton capturing stale config** — Publisher now lazily resolves `EnvelopeBuilder`, `SubjectBuilder`, and `Logger` from config at call time instead of import time; default export uses Proxy for deferred instantiation
+- **DlqConsumer unbounded in-memory Map** — Added 10,000 message cap with oldest-first eviction to prevent memory leaks in long-running processes
+- **TopologyManager fragile error detection** — Replaced brittle `err.code === '404'` check with `isStreamNotFoundError()` helper that handles string codes, numeric codes, and JetStream API error codes
+- **Unhandled async errors in connection status monitor** — Added try/catch around async status monitoring IIFE to prevent unhandled rejections
+- **Consumer subscribe() not awaited** — Fixed fire-and-forget `this.subscribe(subject)` to properly `await` the async call
+- **Hardcoded credentials in docker-compose.yml** — Replaced hardcoded Postgres and Grafana passwords with environment variable references using `${VAR:?error}` syntax
+
+### Improved
+
+- **Singleton testability** — Added `config.reset()`, `connection.reset()`, and `resetPublisher()` methods for clean test isolation without module reloading
+
 ### Planned Features
 
 - OpenTelemetry integration

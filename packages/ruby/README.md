@@ -86,6 +86,7 @@ That's it! You're now publishing and consuming messages with NATS JetStream.
 - 🎭 **Middleware System** - Extensible processing pipeline for cross-cutting concerns
 - 🚀 **CLI Executable** - Run subscribers with concurrency control and graceful shutdown
 - 🧱 **Auto-Topology Management** - Automatic JetStream stream creation, prevents overlap errors
+- 🔐 **Authentication & TLS** - Built-in support for token, user/password, NKey, credentials, and TLS/mTLS
 - ⚡️ **Rails Integration** - Railtie for eager loading, generators for setup
 - 📊 **Structured Logging** - Configurable logging with sensible defaults
 
@@ -144,6 +145,18 @@ NatsPubsub.configure do |config|
   config.use_dlq = true
   config.use_inbox = false # Enable for idempotent receive
   config.use_outbox = false # Enable for reliable send
+
+  # Authentication (pick one)
+  config.auth_token = ENV['NATS_TOKEN']
+  # config.auth_user = ENV['NATS_USER']
+  # config.auth_password = ENV['NATS_PASSWORD']
+  # config.nkeys_seed = ENV['NATS_NKEYS_SEED']
+  # config.user_credentials = ENV['NATS_CREDENTIALS']
+
+  # TLS (for tls:// URLs)
+  # config.tls_ca_file = '/path/to/ca.crt'
+  # config.tls_cert_file = '/path/to/client.crt'  # optional, for mTLS
+  # config.tls_key_file = '/path/to/client.key'   # optional, for mTLS
 
   # Custom logger (optional)
   config.logger = Rails.logger

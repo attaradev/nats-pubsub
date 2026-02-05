@@ -67,10 +67,25 @@ export interface ConnectionManager {
  */
 export class Publisher {
   private readonly connectionManager: ConnectionManager;
-  private readonly logger: Logger;
-  private readonly envelopeBuilder: EnvelopeBuilder;
-  private readonly subjectBuilder: SubjectBuilder;
+  private readonly _logger?: Logger;
+  private readonly _envelopeBuilder?: EnvelopeBuilder;
+  private readonly _subjectBuilder?: SubjectBuilder;
   private readonly validator: PublishValidator;
+
+  private get logger(): Logger {
+    return this._logger || config.logger;
+  }
+
+  private get envelopeBuilder(): EnvelopeBuilder {
+    if (this._envelopeBuilder) return this._envelopeBuilder;
+    return new EnvelopeBuilder(config.get().appName);
+  }
+
+  private get subjectBuilder(): SubjectBuilder {
+    if (this._subjectBuilder) return this._subjectBuilder;
+    const cfg = config.get();
+    return new SubjectBuilder(cfg.env, cfg.appName);
+  }
 
   /**
    * Create a new Publisher instance
@@ -89,17 +104,9 @@ export class Publisher {
     validator?: PublishValidator
   ) {
     this.connectionManager = connectionManager || connection;
-    this.logger = logger || config.logger;
-
-    if (envelopeBuilder && subjectBuilder) {
-      this.envelopeBuilder = envelopeBuilder;
-      this.subjectBuilder = subjectBuilder;
-    } else {
-      const cfg = config.get();
-      this.envelopeBuilder = envelopeBuilder || new EnvelopeBuilder(cfg.appName);
-      this.subjectBuilder = subjectBuilder || new SubjectBuilder(cfg.env, cfg.appName);
-    }
-
+    this._logger = logger;
+    this._envelopeBuilder = envelopeBuilder;
+    this._subjectBuilder = subjectBuilder;
     this.validator = validator || new PublishValidator();
   }
 
@@ -338,7 +345,8 @@ export class Publisher {
   }
 }
 
-// Lazy-initialized singleton instance
+// Lazy-initialized singleton via Proxy — Publisher is only instantiated on
+// first property access, so config.configure() can be called before use.
 let publisherInstance: Publisher | null = null;
 
 function getPublisherInstance(): Publisher {
@@ -348,4 +356,17 @@ function getPublisherInstance(): Publisher {
   return publisherInstance;
 }
 
-export default getPublisherInstance();
+/**
+ * Reset the publisher singleton. Useful for testing.
+ */
+export function resetPublisher(): void {
+  publisherInstance = null;
+}
+
+const publisherProxy = new Proxy({} as Publisher, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getPublisherInstance(), prop, receiver);
+  },
+});
+
+export default publisherProxy;

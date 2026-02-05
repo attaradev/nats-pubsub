@@ -64,6 +64,28 @@ class Config {
     return this.config;
   }
 
+  /**
+   * Reset config to defaults. Useful for testing.
+   */
+  public reset(): void {
+    this.config = {
+      natsUrls: 'nats://localhost:4222',
+      env: process.env.NODE_ENV || 'development',
+      appName: process.env.APP_NAME || 'app',
+      concurrency: Consumer.DEFAULT_CONCURRENCY,
+      maxDeliver: Retry.MAX_ATTEMPTS,
+      ackWait: Timeouts.ACK_WAIT_DEFAULT,
+      backoff: [...Retry.DEFAULT_BACKOFF],
+      useOutbox: false,
+      useInbox: false,
+      useDlq: true,
+      perMessageConcurrency: Consumer.DEFAULT_CONCURRENCY,
+      subscriberTimeoutMs: Timeouts.PROCESSING_TIMEOUT,
+      dlqMaxAttempts: DLQ.MAX_ATTEMPTS,
+    };
+    this.preset = undefined;
+  }
+
   public get streamName(): string {
     return this.config.streamName || `${this.config.env}-events-stream`;
   }
@@ -114,6 +136,8 @@ class Config {
     this.validateRequiredFields();
     this.validateNumericRanges();
     this.validateUrls();
+    this.validateAuth();
+    this.validateTls();
   }
 
   /**
@@ -195,9 +219,67 @@ class Config {
       : [this.config.natsUrls];
 
     for (const url of urls) {
-      if (!/^nats:\/\//i.test(url)) {
+      if (!/^(nats|tls):\/\//i.test(url)) {
         throw new ConfigurationError(`Invalid NATS URL: ${url}`);
       }
+    }
+  }
+
+  /**
+   * Validate authentication configuration
+   */
+  private validateAuth(): void {
+    if (!this.config.auth) return;
+
+    const { type } = this.config.auth;
+    const validTypes = ['token', 'user-password', 'nkey', 'credentials'];
+    if (!validTypes.includes(type)) {
+      throw new ConfigurationError(
+        `Invalid auth type: ${type}. Must be one of: ${validTypes.join(', ')}`
+      );
+    }
+
+    switch (type) {
+      case 'token':
+        if (!this.config.auth.token) {
+          throw new ConfigurationError('auth.token is required when auth.type is "token"');
+        }
+        break;
+      case 'user-password':
+        if (!this.config.auth.user || !this.config.auth.pass) {
+          throw new ConfigurationError(
+            'auth.user and auth.pass are required when auth.type is "user-password"'
+          );
+        }
+        break;
+      case 'nkey':
+        if (!this.config.auth.nkey) {
+          throw new ConfigurationError('auth.nkey is required when auth.type is "nkey"');
+        }
+        break;
+      case 'credentials':
+        if (!this.config.auth.credentialsPath) {
+          throw new ConfigurationError(
+            'auth.credentialsPath is required when auth.type is "credentials"'
+          );
+        }
+        break;
+    }
+  }
+
+  /**
+   * Validate TLS configuration
+   */
+  private validateTls(): void {
+    if (!this.config.tls) return;
+
+    const { certFile, keyFile } = this.config.tls;
+
+    // If one of cert/key is provided, both must be
+    if ((certFile && !keyFile) || (!certFile && keyFile)) {
+      throw new ConfigurationError(
+        'Both tls.certFile and tls.keyFile must be provided for mutual TLS'
+      );
     }
   }
 }

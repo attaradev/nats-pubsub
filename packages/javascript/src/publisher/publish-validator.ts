@@ -11,6 +11,8 @@ import { DomainResourceActionParams, MultiTopicParams } from './types';
  * - Open/Closed: Easy to add new validation rules
  */
 export class PublishValidator {
+  // NATS default max payload is 1MB
+  static readonly MAX_PAYLOAD_BYTES = 1_048_576;
   /**
    * Validate topic name
    *
@@ -40,6 +42,14 @@ export class PublishValidator {
 
     if (Array.isArray(message)) {
       throw new Error('Message cannot be an array');
+    }
+
+    const serialized = JSON.stringify(message);
+    const byteLength = Buffer.byteLength(serialized, 'utf8');
+    if (byteLength > PublishValidator.MAX_PAYLOAD_BYTES) {
+      throw new Error(
+        `Message payload too large: ${byteLength} bytes exceeds NATS max of ${PublishValidator.MAX_PAYLOAD_BYTES} bytes`
+      );
     }
   }
 

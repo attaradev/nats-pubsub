@@ -13,7 +13,20 @@ RSpec.describe NatsPubsub::Connection do
   describe '.connect!' do
     let(:mock_nc) { instance_double(NATS::IO::Client, connected?: true) }
     let(:mock_jts) { instance_double('JetStream') }
-    let(:mock_config) { instance_double(NatsPubsub::Config, nats_urls: 'nats://localhost:4222') }
+    let(:mock_config) do
+      instance_double(
+        NatsPubsub::Config,
+        nats_urls: 'nats://localhost:4222',
+        user_credentials: nil,
+        nkeys_seed: nil,
+        auth_token: nil,
+        auth_user: nil,
+        auth_password: nil,
+        tls_ca_file: nil,
+        tls_cert_file: nil,
+        tls_key_file: nil
+      )
+    end
 
     before do
       allow(NatsPubsub).to receive(:config).and_return(mock_config)
@@ -98,7 +111,7 @@ RSpec.describe NatsPubsub::Connection do
           hash_including(
             reconnect: true,
             reconnect_time_wait: 2,
-            max_reconnect_attempts: 10,
+            max_reconnect_attempts: -1,
             connect_timeout: 5
           )
         )
@@ -186,7 +199,20 @@ RSpec.describe NatsPubsub::Connection do
     let(:instance) { described_class.instance }
     let(:mock_nc_instance) { instance_double(NATS::IO::Client, connected?: false) }
     let(:mock_jts_instance) { instance_double('JetStream') }
-    let(:instance_mock_config) { instance_double(NatsPubsub::Config, nats_urls: 'nats://localhost:4222') }
+    let(:instance_mock_config) do
+      instance_double(
+        NatsPubsub::Config,
+        nats_urls: 'nats://localhost:4222',
+        user_credentials: nil,
+        nkeys_seed: nil,
+        auth_token: nil,
+        auth_user: nil,
+        auth_password: nil,
+        tls_ca_file: nil,
+        tls_cert_file: nil,
+        tls_key_file: nil
+      )
+    end
 
     before do
       allow(NatsPubsub).to receive(:config).and_return(instance_mock_config)

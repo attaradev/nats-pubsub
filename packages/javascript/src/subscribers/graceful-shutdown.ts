@@ -20,13 +20,16 @@ export interface GracefulShutdownOptions {
 
 /**
  * Graceful shutdown manager for subscribers
- * Handles signal trapping and ensures clean shutdown with message drain
+ * Handles signal trapping and ensures clean shutdown with message drain.
+ *
+ * Uses Consumer.stop() which calls NATS connection.drain() under the hood.
+ * NATS drain stops accepting new messages, waits for in-flight messages to
+ * complete, then closes the connection — providing built-in graceful shutdown.
  */
 export class GracefulShutdown {
   private readonly timeout: number;
   private readonly logger?: Logger;
   private shuttingDown = false;
-  private shutdownStartedAt?: Date;
 
   private static readonly DEFAULT_TIMEOUT = 30_000; // 30 seconds
 
@@ -39,8 +42,10 @@ export class GracefulShutdown {
   }
 
   /**
-   * Start graceful shutdown process
-   * @returns True if shutdown completed gracefully within timeout
+   * Start graceful shutdown process.
+   * Calls consumer.stop() with a timeout to ensure shutdown completes.
+   * NATS drain handles waiting for in-flight messages.
+   * @returns True if shutdown completed within timeout
    */
   async shutdown(): Promise<boolean> {
     if (this.shuttingDown) {
@@ -48,31 +53,39 @@ export class GracefulShutdown {
     }
 
     this.shuttingDown = true;
-    this.shutdownStartedAt = new Date();
+    const startedAt = Date.now();
 
     this.logger?.info('Starting graceful shutdown', { timeout: this.timeout });
 
-    // Stop accepting new messages
-    await this.stopAcceptingMessages();
+    try {
+      // consumer.stop() calls connection.drain() + connection.close()
+      // which handles the graceful message drain natively
+      await Promise.race([
+        this.consumer.stop(),
+        this.sleep(this.timeout).then(() => {
+          throw new Error('Shutdown timeout reached');
+        }),
+      ]);
 
-    // Wait for in-flight messages
-    const completed = await this.waitForCompletion();
+      const elapsed = Date.now() - startedAt;
+      this.logger?.info('Graceful shutdown complete', { elapsed, graceful: true });
+      return true;
+    } catch (error) {
+      const elapsed = Date.now() - startedAt;
+      this.logger?.warn('Graceful shutdown timed out, forcing stop', {
+        elapsed,
+        timeout: this.timeout,
+      });
 
-    // Force terminate if needed
-    if (!completed) {
-      await this.forceTerminate();
+      // Force stop by calling stop again (idempotent)
+      try {
+        await this.consumer.stop();
+      } catch {
+        // Already stopped or connection lost — safe to ignore
+      }
+
+      return false;
     }
-
-    // Close connections
-    await this.closeConnections();
-
-    const elapsed = Date.now() - this.shutdownStartedAt.getTime();
-    this.logger?.info('Graceful shutdown complete', {
-      elapsed,
-      graceful: completed,
-    });
-
-    return completed;
   }
 
   /**
@@ -102,73 +115,6 @@ export class GracefulShutdown {
     });
   }
 
-  /**
-   * Stop accepting new messages
-   */
-  private async stopAcceptingMessages(): Promise<void> {
-    this.logger?.info('Stopping message acceptance');
-    if (typeof (this.consumer as any).pause === 'function') {
-      await (this.consumer as any).pause();
-    }
-  }
-
-  /**
-   * Wait for in-flight messages to complete
-   */
-  private async waitForCompletion(): Promise<boolean> {
-    const deadline = Date.now() + this.timeout;
-
-    while (true) {
-      const inFlight =
-        typeof (this.consumer as any).getInFlightCount === 'function'
-          ? (this.consumer as any).getInFlightCount()
-          : 0;
-
-      if (inFlight === 0) {
-        this.logger?.info('All messages processed');
-        return true;
-      }
-
-      if (Date.now() >= deadline) {
-        this.logger?.warn('Shutdown timeout reached', {
-          inFlight,
-          timeout: this.timeout,
-        });
-        return false;
-      }
-
-      this.logger?.debug('Waiting for messages', {
-        inFlight,
-        remaining: deadline - Date.now(),
-      });
-
-      await this.sleep(500);
-    }
-  }
-
-  /**
-   * Force terminate remaining messages
-   */
-  private async forceTerminate(): Promise<void> {
-    this.logger?.warn('Force terminating remaining messages');
-    if (typeof (this.consumer as any).forceStop === 'function') {
-      await (this.consumer as any).forceStop();
-    }
-  }
-
-  /**
-   * Close connections
-   */
-  private async closeConnections(): Promise<void> {
-    this.logger?.info('Closing connections');
-    if (typeof (this.consumer as any).close === 'function') {
-      await (this.consumer as any).close();
-    }
-  }
-
-  /**
-   * Sleep helper
-   */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

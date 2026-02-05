@@ -36,6 +36,8 @@ export interface PersistentDlqStore {
  * Subscribes to DLQ subject and handles poison messages
  */
 export class DlqConsumer extends Subscriber {
+  private static readonly MAX_IN_MEMORY_MESSAGES = 10_000;
+
   private config: typeof config;
   private handlers: DlqHandler[] = [];
   private messages: Map<string, DlqMessage> = new Map();
@@ -74,6 +76,17 @@ export class DlqConsumer extends Subscriber {
       dlqMessage.first_seen = existing.first_seen;
     }
     this.messages.set(metadata.event_id, dlqMessage);
+
+    // Evict oldest entries when exceeding max size
+    if (this.messages.size > DlqConsumer.MAX_IN_MEMORY_MESSAGES) {
+      const keysToDelete = Array.from(this.messages.keys()).slice(
+        0,
+        this.messages.size - DlqConsumer.MAX_IN_MEMORY_MESSAGES
+      );
+      for (const key of keysToDelete) {
+        this.messages.delete(key);
+      }
+    }
 
     // Log DLQ message
     this.config.logger.warn('Message received in DLQ', {
