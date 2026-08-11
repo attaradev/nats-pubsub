@@ -89,12 +89,12 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.2",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.49.0",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.0",
     "jest": "^30.2.0",
     "prettier": "^3.3.2",
     "ts-jest": "^29.1.5",
